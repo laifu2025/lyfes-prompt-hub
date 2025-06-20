@@ -50,6 +50,12 @@ export function renderAll() {
     updateCategories();
     updateFilterView();
     categoryView.render();
+    if (state.appData && state.appData.settings) {
+        renderSettingsStatus({
+            storageMode: state.appData.settings.workspaceMode ? 'workspace' : 'global',
+            cloudSync: { status: state.appData.settings.cloudSync ? '已启用' : '未配置' }
+        });
+    }
 }
 
 export function renderPrompts() {

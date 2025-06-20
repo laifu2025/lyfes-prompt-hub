@@ -22,21 +22,20 @@ export function initializeApiListener() {
         const message = event.data;
         const { requestId, type, ...response } = message;
 
-        if (state.pendingRequests.has(requestId)) {
+        // Handle responses to requests initiated by the webview
+        if (requestId && state.pendingRequests.has(requestId)) {
             const { resolve, reject, type: requestType } = state.pendingRequests.get(requestId);
             state.pendingRequests.delete(requestId);
-            if (response.success === false || message.success === false) { // Check both for robustness
+            if (response.success === false || message.success === false) {
                 const errorMsg = response.error || response.message || `操作 '${requestType}' 失败`;
                 console.error(`Request ${requestType} (${requestId}) failed:`, errorMsg);
                 reject(new Error(errorMsg));
             } else {
                 resolve(response.data !== undefined ? response.data : response);
             }
-        } else {
-             // Messages initiated by the backend (e.g., manual refresh from VS Code command)
+        // Handle messages initiated by the backend (e.g., manual refresh)
+        } else if (!requestId) { 
             if (type === 'appDataResponse' && message.isRefresh) {
-                // This is a special case for manual refresh.
-                // We'll dispatch a custom event that the app can listen to.
                 window.dispatchEvent(new CustomEvent('manualRefresh', { detail: message.data }));
             } else if (type === 'error') {
                  console.error('Received an error from the backend:', message.message);

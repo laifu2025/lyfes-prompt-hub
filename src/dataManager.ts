@@ -366,9 +366,12 @@ export class DataManager {
     // #endregion
     
     // #region System & Dispose
-    public async getSystemStatus(): Promise<any> {
+    public async getSystemStatus(): Promise<{ storageMode: 'workspace' | 'global'; cloudSync: { status: string } }> {
         const storageInfo = await this.getStorageInfo();
-        return { storage: { isWorkspace: storageInfo.mode === 'workspace', message: storageInfo.location } };
+        return {
+            storageMode: storageInfo.mode,
+            cloudSync: { status: '未配置' } // Dummy status for now
+        };
     }
 
     public dispose(): void {

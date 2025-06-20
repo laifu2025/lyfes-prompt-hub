@@ -17,13 +17,6 @@ export async function initialLoad() {
             state.appData = appData;
             state.prompts = appData.prompts || [];
             renderAll();
-            
-            if (appData.settings) {
-                renderSettingsStatus({
-                    storageMode: appData.settings.workspaceMode ? 'workspace' : 'global',
-                    cloudSync: { status: appData.settings.cloudSync ? '已启用' : '未配置' }
-                });
-            }
         }
     } catch (error) {
         console.error("Error during initial load:", error);

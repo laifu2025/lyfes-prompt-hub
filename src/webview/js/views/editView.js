@@ -11,7 +11,7 @@ function renderAvailableTags() {
 
     const available = allTagsCache.filter(t => !state.currentTags.includes(t));
     container.innerHTML = available.map(tag => `
-        <span class="tag-pill available-tag">
+        <span class="tag-pill available-tag" data-tag="${tag}">
             ${tag}
             <button type="button" class="tag-remove-btn permanent-delete" data-tag="${tag}" title="永久删除该标签">&times;</button>
         </span>
@@ -21,7 +21,7 @@ function renderAvailableTags() {
 
 function handleAvailableTagClick(e) {
     if (e.target.classList.contains('available-tag')) {
-        const tag = e.target.textContent.replace(/×$/, '').trim();
+        const tag = e.target.dataset.tag;
         if (tag && !state.currentTags.includes(tag)) {
             state.currentTags.push(tag);
             renderTags();

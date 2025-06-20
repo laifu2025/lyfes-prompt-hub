@@ -108,6 +108,63 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 break;
             }
 
+            // Data Management Actions
+            case 'importData': {
+                await vscode.commands.executeCommand('promptHub.importData');
+                this._postMessage({ type: 'importDataResponse', requestId: message.requestId, success: true });
+                break;
+            }
+            case 'exportData': {
+                await vscode.commands.executeCommand('promptHub.exportData');
+                this._postMessage({ type: 'exportDataResponse', requestId: message.requestId, success: true });
+                break;
+            }
+            case 'createBackup': {
+                await vscode.commands.executeCommand('promptHub.createBackup');
+                this._postMessage({ type: 'createBackupResponse', requestId: message.requestId, success: true });
+                break;
+            }
+            case 'restoreBackup': {
+                await vscode.commands.executeCommand('promptHub.restoreBackup');
+                this._postMessage({ type: 'restoreBackupResponse', requestId: message.requestId, success: true });
+                break;
+            }
+
+            // Cloud Sync Actions
+            case 'setupCloudSync': {
+                await vscode.commands.executeCommand('promptHub.setupCloudSync');
+                this._postMessage({ type: 'setupCloudSyncResponse', requestId: message.requestId, success: true });
+                break;
+            }
+            case 'syncToCloud': {
+                await vscode.commands.executeCommand('promptHub.syncToCloud');
+                this._postMessage({ type: 'syncToCloudResponse', requestId: message.requestId, success: true });
+                break;
+            }
+            case 'syncFromCloud': {
+                await vscode.commands.executeCommand('promptHub.syncFromCloud');
+                this._postMessage({ type: 'syncFromCloudResponse', requestId: message.requestId, success: true });
+                break;
+            }
+
+            // Storage Mode Actions
+            case 'getStorageInfo': {
+                await vscode.commands.executeCommand('promptHub.showStorageInfo');
+                this._postMessage({ type: 'getStorageInfoResponse', requestId: message.requestId, success: true });
+                break;
+            }
+            case 'toggleWorkspaceMode': {
+                await vscode.commands.executeCommand('promptHub.toggleWorkspaceMode');
+                this._postMessage({ type: 'toggleWorkspaceModeResponse', requestId: message.requestId, success: true });
+                break;
+            }
+
+            case 'getSystemStatus': {
+                const status = await this._dataManager.getSystemStatus();
+                this._postMessage({ type: 'systemStatusResponse', requestId: message.requestId, success: true, data: status });
+                break;
+            }
+
             case 'setPromptActive': {
                 await this._dataManager.setPromptActive(payload.id, payload.isActive);
                 this._postMessage({ type: 'setPromptActiveResponse', requestId: message.requestId, success: true });

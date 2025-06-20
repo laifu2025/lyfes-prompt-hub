@@ -155,6 +155,17 @@ export function initEventListeners() {
             ui.renderTags();
             return;
         }
+
+        // Add tag from all-tags-container
+        if (target.matches('.all-tags-container .tag')) {
+            // Get the pure tag name, removing the "×" and any whitespace
+            const tagName = target.textContent.replace(/s*×s*$/, '').trim();
+            if (tagName && !state.currentTags.includes(tagName)) {
+                state.currentTags.push(tagName);
+                ui.renderTags();
+            }
+            return;
+        }
         
         // --- Category Management View ---
         if (target.closest('#add-new-category-btn')) {
@@ -237,11 +248,8 @@ export function initEventListeners() {
 
     // --- Settings View Actions ---
     document.getElementById('settings-view')?.addEventListener('click', e => {
-        console.log('Settings view clicked. Target:', e.target);
         const target = e.target.closest('button');
         if (!target) return;
-
-        console.log('Button clicked:', target.id);
 
         const handlers = {
             'import-btn': () => handleDataAction('importData', { success: '数据导入成功！', error: '导入失败' }),
@@ -252,7 +260,7 @@ export function initEventListeners() {
             'sync-to-cloud-btn': () => handleDataAction('syncToCloud', { success: '同步到云端成功！', error: '同步失败' }),
             'sync-from-cloud-btn': () => handleDataAction('syncFromCloud', { success: '从云端同步成功！', error: '同步失败' }),
             'show-storage-info-btn': () => postMessageWithResponse('getStorageInfo'),
-            'toggle-workspace-mode-btn': () => handleDataAction('toggleWorkspaceMode', { success: '存储模式已切换' }).then(fetchAndRenderSettingsStatus),
+            'toggle-workspace-mode-btn': () => postMessageWithResponse('toggleWorkspaceMode'),
         };
 
         if (handlers[target.id]) {
