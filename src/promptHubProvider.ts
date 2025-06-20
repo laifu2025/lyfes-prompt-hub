@@ -40,6 +40,11 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
         webviewView.webview.onDidReceiveMessage(
             async (message) => {
                 try {
+                    if (message.type === 'webviewReady') {
+                        // Webview is ready, send initial data
+                        this.refresh();
+                        return;
+                    }
                     await this._handleWebviewMessage(message);
         } catch (error) {
                     console.error('处理webview消息失败:', error);
@@ -276,6 +281,28 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 }
                 break;
             }
+            case 'savePrompt': {
+                try {
+                    const updatedAppData = await this._dataManager.savePrompt(message.prompt);
+                    this._postMessage({ type: 'savePromptResponse', requestId: message.requestId, success: true, data: updatedAppData });
+                    this._showNotification('Prompt 已成功保存。', 'info');
+                } catch (error: any) {
+                    this._postMessage({ type: 'savePromptResponse', requestId: message.requestId, success: false, error: error.message });
+                    this._showNotification(`保存 Prompt 失败: ${error.message}`, 'error');
+                }
+                break;
+            }
+            case 'deletePrompt': {
+                try {
+                    const updatedAppData = await this._dataManager.deletePrompt(message.id);
+                    this._postMessage({ type: 'deletePromptResponse', requestId: message.requestId, success: true, data: updatedAppData });
+                    this._showNotification('Prompt 已成功删除。', 'info');
+                } catch (error: any) {
+                    this._postMessage({ type: 'deletePromptResponse', requestId: message.requestId, success: false, error: error.message });
+                    this._showNotification(`删除 Prompt 失败: ${error.message}`, 'error');
+                }
+                break;
+            }
             default:
                 console.warn('未知的消息类型:', message.type);
                 }
@@ -288,14 +315,20 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
         if (this._view) {
             this._view.webview.postMessage(message);
         }
-                }
-                
+    }
+
     /**
-     * 刷新webview
+     * 刷新webview，获取最新数据并推送
      */
-    public refresh(): void {
+    public async refresh(): Promise<void> {
         if (this._view) {
-            this._postMessage({ type: 'requestRefresh' });
+            try {
+                const appData = await this._dataManager.getAppData();
+                this._postMessage({ type: 'dataRefreshed', data: appData });
+            } catch (error) {
+                console.error('刷新数据失败:', error);
+                this._postMessage({ type: 'error', message: '刷新数据失败' });
+            }
         }
     }
 
@@ -303,33 +336,23 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
      * 获取webview的HTML内容
      */
     private _getHtmlForWebview(webview: vscode.Webview): string {
-        const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'index.html');
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'main.js'));
-        const bridgeUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'webviewDataBridge.js'));
-        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'style.css'));
-        
         try {
+            const scriptPathOnDisk = vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'js', 'app.js');
+            const scriptUri = webview.asWebviewUri(scriptPathOnDisk);
+
+            const stylePathOnDisk = vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'style.css');
+            const styleUri = webview.asWebviewUri(stylePathOnDisk);
+            
+            const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'index.html');
             let htmlContent = fs.readFileSync(htmlPath.fsPath, 'utf8');
 
-            const csp = `
-                <meta http-equiv="Content-Security-Policy" content="
-                    default-src 'none'; 
-                    img-src ${webview.cspSource} https: data:; 
-                    style-src ${webview.cspSource} 'unsafe-inline'; 
-                    font-src ${webview.cspSource};
-                    script-src ${webview.cspSource};
-                ">
-            `;
-        
-            htmlContent = htmlContent
-                .replace(/__STYLE_URI__/g, styleUri.toString())
-                .replace(/__SCRIPT_URI__/g, scriptUri.toString())
-                .replace(/__BRIDGE_URI__/g, bridgeUri.toString())
-                .replace('</head>', `${csp}</head>`);
-        
+            // Replace placeholders
+            htmlContent = htmlContent.replace(/__SCRIPT_URI__/g, scriptUri.toString());
+            htmlContent = htmlContent.replace(/__STYLE_URI__/g, styleUri.toString());
+            
             return htmlContent;
         } catch (error) {
-            console.error('Error reading or modifying webview HTML file:', error);
+            console.error('Error getting HTML for webview:', error);
             return this._getFallbackHtml(error);
         }
     }

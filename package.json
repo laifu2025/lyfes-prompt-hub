@@ -1,11 +1,11 @@
 {
   "name": "lyfes-prompt-hub",
   "displayName": "Lyfe's Prompt Hub",
-  "description": "A powerful prompt management center for VS Code, designed to improve your interaction efficiency with AI.",
-  "version": "0.6.6",
+  "description": "A personal prompt management center.",
+  "version": "0.6.7",
   "publisher": "Lyfe",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.80.0"
   },
   "categories": [
     "Other"
@@ -182,7 +182,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && cpx \"src/webview/**/*.{html,css,js}\" out/webview && cpx \"src/webviewDataBridge.js\" out/webview",
+    "compile": "tsc -p ./ && cpx \"src/webview/**/*.{html,css,js}\" out/webview",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",

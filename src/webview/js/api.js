@@ -1,84 +1,68 @@
-const vscode = acquireVsCodeApi();
-const pendingRequests = new Map();
-let requestIdCounter = 0;
+import { state } from './state.js';
 
 /**
- * A map to store event listeners for messages from the backend.
- * @type {Map<string, Set<Function>>}
- */
-const eventListeners = new Map();
-
-/**
- * Sends a message to the extension host and returns a promise that resolves with the response.
- * @param {string} type - The type of the message.
- * @param {object} [payload={}] - The data to send with the message.
- * @returns {Promise<any>} A promise that resolves with the response from the extension.
+ * Sends a message to the extension backend and returns a Promise that resolves with the response.
+ * @param {string} type The message type/command.
+ * @param {object} payload The data to send with the message.
+ * @returns {Promise<any>} A promise that resolves with the backend's response.
  */
 export function postMessageWithResponse(type, payload = {}) {
     return new Promise((resolve, reject) => {
-        const requestId = `webview-${requestIdCounter++}`;
-        pendingRequests.set(requestId, { resolve, reject, type });
-        vscode.postMessage({ type, requestId, ...payload });
+        const requestId = `webview-${state.requestIdCounter++}`;
+        state.pendingRequests.set(requestId, { resolve, reject, type });
+        state.vscode.postMessage({ type, requestId, ...payload });
     });
 }
 
 /**
- * Registers a listener for a specific event type from the backend.
- * @param {string} eventType - The type of the event to listen for.
- * @param {Function} callback - The function to call when the event is received.
- * @returns {Function} An unsubscribe function.
+ * Initializes the main message listener to handle responses from the extension.
+ * This is a critical part of the API layer.
+ * @param {function} initialLoad - A function to be called when a refresh is requested.
+ * @param {function} renderAll - A function to render the entire UI.
+ * @param {function} renderSettingsStatus - A function to update settings status.
  */
-export function on(eventType, callback) {
-    if (!eventListeners.has(eventType)) {
-        eventListeners.set(eventType, new Set());
-    }
-    eventListeners.get(eventType).add(callback);
-
-    // Return an unsubscribe function
-    return () => {
-        eventListeners.get(eventType)?.delete(callback);
-    };
-}
-
-/**
- * Emits an event to all registered listeners.
- * @param {string} eventType - The type of the event.
- * @param {any} data - The data to pass to the listeners.
- */
-function emit(eventType, data) {
-    if (eventListeners.has(eventType)) {
-        eventListeners.get(eventType).forEach(callback => {
-            try {
-                callback(data);
-            } catch (error) {
-                console.error(`Error in event listener for ${eventType}:`, error);
-            }
-        });
-    }
-}
-
-/**
- * Initializes the message listener to handle communication from the extension.
- */
-export function initializeApi() {
+export function initializeApiListener(initialLoad, renderAll, renderSettingsStatus) {
     window.addEventListener('message', event => {
         const message = event.data;
         const { requestId, type, ...response } = message;
 
-        // Handle responses to requests made from the webview
-        if (requestId && pendingRequests.has(requestId)) {
-            const { resolve, reject, type: requestType } = pendingRequests.get(requestId);
-            pendingRequests.delete(requestId);
+        if (state.pendingRequests.has(requestId)) {
+            const { resolve, reject, type: requestType } = state.pendingRequests.get(requestId);
+            state.pendingRequests.delete(requestId);
             if (response.success === false) {
                 console.error(`Request ${requestType} (${requestId}) failed:`, response.error);
                 reject(new Error(response.error || `操作 '${requestType}' 失败`));
             } else {
                 resolve(response);
             }
-        } 
-        // Handle events/pushes from the backend
-        else if (type) {
-            emit(type, response);
+        } else {
+            // Handle messages initiated by the backend
+            switch (type) {
+                case 'error':
+                    console.error('Received an error from the backend:', response.message);
+                    // We might need a UI function to show this error, e.g., showToast
+                    break;
+                case 'requestRefresh':
+                    initialLoad();
+                    state.vscode.postMessage({
+                        type: 'showNotification',
+                        message: '数据已刷新',
+                        notificationType: 'info'
+                    });
+                    break;
+                case 'appDataResponse': // E.g., for manual refresh or push updates
+                     if (response.data) {
+                        state.appData = response.data;
+                        state.prompts = response.data.prompts;
+                        renderAll();
+                     }
+                    break;
+                case 'systemStatusUpdated':
+                    if (response.data) {
+                        renderSettingsStatus(response.data);
+                    }
+                    break;
+            }
         }
     });
 }

@@ -265,6 +265,89 @@ export class DataManager {
     }
 
     /**
+     * 删除一个分类
+     * @param categoryName 要删除的分类名称
+     * @returns 更新后的应用数据
+     */
+    public async deleteCategory(categoryName: string): Promise<AppData> {
+        const appData = await this.getAppData();
+        const categoryIndex = appData.categories.indexOf(categoryName);
+        if (categoryIndex > -1) {
+            appData.categories.splice(categoryIndex, 1);
+            // 将属于该分类的 prompts 移动到 "未分类"
+            appData.prompts.forEach(p => {
+                if (p.category === categoryName) {
+                    p.category = '未分类';
+                }
+            });
+            await this.saveAppData(appData);
+        }
+        return appData;
+    }
+
+    /**
+     * 保存（创建或更新）一个 Prompt
+     * @param promptData 要保存的 Prompt 数据
+     * @returns 更新后的应用数据
+     */
+    public async savePrompt(promptData: Partial<Prompt> & { id?: string | number }): Promise<AppData> {
+        const appData = await this.getAppData();
+        const now = new Date().toISOString();
+
+        if (promptData.id) {
+            // 更新现有 Prompt
+            const promptId = typeof promptData.id === 'string' ? parseInt(promptData.id, 10) : promptData.id;
+            const promptIndex = appData.prompts.findIndex(p => p.id === promptId);
+            if (promptIndex > -1) {
+                appData.prompts[promptIndex] = {
+                    ...appData.prompts[promptIndex],
+                    ...promptData,
+                    id: promptId,
+                    updatedAt: now,
+                };
+            } else {
+                throw new Error(`找不到 ID 为 ${promptId} 的 Prompt。`);
+            }
+        } else {
+            // 创建新 Prompt
+            const newPrompt: Prompt = {
+                id: Date.now(), // 简单地使用时间戳作为ID
+                title: promptData.title || '',
+                content: promptData.content || '',
+                category: promptData.category || '未分类',
+                tags: promptData.tags || [],
+                isActive: true, // 默认为激活状态
+                createdAt: now,
+                updatedAt: now,
+            };
+            appData.prompts.push(newPrompt);
+        }
+
+        // 更新分类列表
+        if (promptData.category && !appData.categories.includes(promptData.category)) {
+            appData.categories.push(promptData.category);
+        }
+        
+        await this.saveAppData(appData);
+        return appData;
+    }
+
+    /**
+     * 删除一个 Prompt
+     * @param promptId 要删除的 Prompt 的 ID
+     * @returns 更新后的应用数据
+     */
+    public async deletePrompt(promptId: number): Promise<AppData> {
+        const appData = await this.getAppData();
+        const promptIndex = appData.prompts.findIndex(p => p.id === promptId);
+        if (promptIndex > -1) {
+            appData.prompts.splice(promptIndex, 1);
+            await this.saveAppData(appData);
+        }
+        return appData;
+    }
+
+    /**
      * 创建数据备份
      */
     public async createBackup(data?: AppData): Promise<string> {
