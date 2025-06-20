@@ -201,7 +201,12 @@ export function renderSettingsStatus(status) {
     
     if (status.cloudSync) {
         const syncStatusText = status.cloudSync.status;
-        updateBadge(dom.settingsViewElements.cloudSyncStatus, syncStatusText, 'info');
+        const isEnabled = syncStatusText.includes('已配置') || syncStatusText.includes('已启用');
+        const syncStatusType = isEnabled ? 'success' : 'error';
+        updateBadge(dom.settingsViewElements.cloudSyncStatus, syncStatusText, syncStatusType);
+
+        dom.settingsViewElements.syncToCloudButton.disabled = !isEnabled;
+        dom.settingsViewElements.syncFromCloudButton.disabled = !isEnabled;
     }
 }
 

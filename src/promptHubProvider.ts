@@ -13,6 +13,10 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
         this._dataManager = new DataManager(context);
     }
 
+    public getDataManager(): DataManager {
+        return this._dataManager;
+    }
+
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
         context: vscode.WebviewViewResolveContext,
@@ -110,40 +114,44 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
 
             // Data Management Actions
             case 'importData': {
-                await vscode.commands.executeCommand('promptHub.importData');
+                const result = await this._dataManager.importData();
+                if (result) this.refresh();
                 this._postMessage({ type: 'importDataResponse', requestId: message.requestId, success: true });
                 break;
             }
             case 'exportData': {
-                await vscode.commands.executeCommand('promptHub.exportData');
+                await this._dataManager.exportData();
                 this._postMessage({ type: 'exportDataResponse', requestId: message.requestId, success: true });
                 break;
             }
             case 'createBackup': {
-                await vscode.commands.executeCommand('promptHub.createBackup');
-                this._postMessage({ type: 'createBackupResponse', requestId: message.requestId, success: true });
+                const backupPath = await this._dataManager.createBackup();
+                this._postMessage({ type: 'createBackupResponse', requestId: message.requestId, success: true, data: { path: backupPath } });
                 break;
             }
             case 'restoreBackup': {
+                // This one is more complex and better handled by the command which has full UI control
                 await vscode.commands.executeCommand('promptHub.restoreBackup');
-                this._postMessage({ type: 'restoreBackupResponse', requestId: message.requestId, success: true });
+                this._postMessage({ type: 'restoreBackupResponse', requestId: message.requestId, success: true, data: { restored: true }});
                 break;
             }
 
             // Cloud Sync Actions
-            case 'setupCloudSync': {
-                await vscode.commands.executeCommand('promptHub.setupCloudSync');
+            case 'webview:setupCloudSync': {
+                const result = await this._dataManager.setupCloudSync();
+                if (result) this.refresh();
                 this._postMessage({ type: 'setupCloudSyncResponse', requestId: message.requestId, success: true });
                 break;
             }
-            case 'syncToCloud': {
-                await vscode.commands.executeCommand('promptHub.syncToCloud');
+            case 'webview:syncToCloud': {
+                await this._dataManager.syncToCloud();
                 this._postMessage({ type: 'syncToCloudResponse', requestId: message.requestId, success: true });
                 break;
             }
-            case 'syncFromCloud': {
-                await vscode.commands.executeCommand('promptHub.syncFromCloud');
-                this._postMessage({ type: 'syncFromCloudResponse', requestId: message.requestId, success: true });
+            case 'webview:syncFromCloud': {
+                const result = await this._dataManager.syncFromCloud();
+                if (result) this.refresh();
+                this._postMessage({ type: 'syncFromCloudResponse', requestId: message.requestId, success: true, data: result });
                 break;
             }
 
@@ -154,7 +162,9 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 break;
             }
             case 'toggleWorkspaceMode': {
-                await vscode.commands.executeCommand('promptHub.toggleWorkspaceMode');
+                const appData = await this._dataManager.getAppData();
+                await this._dataManager.toggleWorkspaceMode(!appData.settings.workspaceMode);
+                this.refresh();
                 this._postMessage({ type: 'toggleWorkspaceModeResponse', requestId: message.requestId, success: true });
                 break;
             }

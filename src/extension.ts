@@ -2,15 +2,13 @@ import * as vscode from 'vscode';
 import { PromptHubProvider } from './promptHubProvider';
 import { DataManager } from './dataManager';
 
-let dataManager: DataManager;
+// let dataManager: DataManager; // REMOVE
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Prompt Hub 扩展已激活');
     
-    // 初始化数据管理器
-    dataManager = new DataManager(context);
+    // dataManager = new DataManager(context); // REMOVE
     
-    // 创建 Prompt Hub Provider
     const promptHubProvider = new PromptHubProvider(context.extensionUri, context);
     
     // 注册 webview provider
@@ -43,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.exportData', async () => {
             try {
-                await dataManager.exportData();
+                await promptHubProvider.getDataManager().exportData();
             } catch (error) {
                 vscode.window.showErrorMessage(`导出数据失败: ${error}`);
             }
@@ -53,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.importData', async () => {
             try {
-                const result = await dataManager.importData();
+                const result = await promptHubProvider.getDataManager().importData();
                 if (result) {
                     promptHubProvider.refresh();
                 }
@@ -66,7 +64,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.createBackup', async () => {
             try {
-                const backupPath = await dataManager.createBackup();
+                const backupPath = await promptHubProvider.getDataManager().createBackup();
                 vscode.window.showInformationMessage(`备份已创建: ${backupPath}`);
             } catch (error) {
                 vscode.window.showErrorMessage(`创建备份失败: ${error}`);
@@ -77,13 +75,14 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.restoreBackup', async () => {
             try {
+                const dataManager = promptHubProvider.getDataManager();
                 const backupList = dataManager.getBackupList();
                 if (backupList.length === 0) {
                     vscode.window.showInformationMessage('没有可用的备份文件');
                     return;
                 }
 
-                const items = backupList.map(backup => ({
+                const items: (vscode.QuickPickItem & { backupPath: string })[] = backupList.map(backup => ({
                     label: new Date(backup.timestamp).toLocaleString('zh-CN'),
                     description: `${(backup.size / 1024).toFixed(2)} KB`,
                     detail: backup.path,
@@ -109,7 +108,10 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.setupCloudSync', async () => {
             try {
-                await dataManager.setupCloudSync();
+                const result = await promptHubProvider.getDataManager().setupCloudSync();
+                if (result) {
+                    promptHubProvider.refresh();
+                }
             } catch (error) {
                 vscode.window.showErrorMessage(`设置云同步失败: ${error}`);
             }
@@ -119,7 +121,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.syncToCloud', async () => {
             try {
-                await dataManager.syncToCloud();
+                await promptHubProvider.getDataManager().syncToCloud();
             } catch (error) {
                 vscode.window.showErrorMessage(`同步到云端失败: ${error}`);
             }
@@ -129,7 +131,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.syncFromCloud', async () => {
             try {
-                const result = await dataManager.syncFromCloud();
+                const result = await promptHubProvider.getDataManager().syncFromCloud();
                 if (result) {
                     promptHubProvider.refresh();
                 }
@@ -143,6 +145,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.toggleWorkspaceMode', async () => {
             try {
+                const dataManager = promptHubProvider.getDataManager();
                 const storageInfo = await dataManager.getStorageInfo();
                 const currentMode = storageInfo.mode === 'workspace';
                 
@@ -169,6 +172,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.showStorageInfo', async () => {
             try {
+                const dataManager = promptHubProvider.getDataManager();
                 const storageInfo = await dataManager.getStorageInfo();
                 const appData = await dataManager.getAppData();
                 
@@ -189,13 +193,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     // 将数据管理器添加到context，以便在停用时清理
     context.subscriptions.push({
-        dispose: () => dataManager.dispose()
+        dispose: () => promptHubProvider.getDataManager().dispose()
     });
 }
 
 export function deactivate() {
     console.log('Prompt Hub 扩展已停用');
-    if (dataManager) {
-        dataManager.dispose();
-    }
+    // if (dataManager) { // REMOVED
+    //     dataManager.dispose();
+    // }
 } 

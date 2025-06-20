@@ -551,37 +551,25 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 
 .status-badge {
-    padding: 3px 8px;
-    border-radius: 12px; /* More rounded, pill-like shape */
+    padding: 2px 8px;
+    border-radius: 12px;
     font-size: 12px;
-    font-weight: 600;
-    text-align: center;
-    display: inline-block;
-    border: 1px solid transparent;
-}
-
-.status-badge.success {
-    background-color: var(--vscode-terminal-ansiGreen);
-    color: var(--vscode-editor-background);
-    border-color: var(--vscode-terminal-ansiGreen);
-}
-
-.status-badge.error {
-    background-color: var(--vscode-errorForeground);
-    color: var(--vscode-editor-background);
-    border-color: var(--vscode-errorForeground);
+    font-weight: 500;
 }
 
 .status-badge.info {
     background-color: var(--vscode-button-secondaryBackground);
     color: var(--vscode-button-secondaryForeground);
-    border-color: var(--vscode-button-secondaryHoverBackground);
 }
 
-.status-badge.warning {
-    background-color: var(--vscode-terminal-ansiYellow);
-    color: var(--vscode-editor-background);
-    border-color: var(--vscode-terminal-ansiYellow);
+.status-badge.success {
+    background-color: var(--vscode-terminal-ansiGreen);
+    color: var(--vscode-button-foreground);
+}
+
+.status-badge.error {
+    background-color: var(--vscode-terminal-ansiRed);
+    color: var(--vscode-button-foreground);
 }
 
 /* === 设置视图 (Settings View) === */
