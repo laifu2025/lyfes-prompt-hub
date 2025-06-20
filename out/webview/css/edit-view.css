@@ -1,0 +1,79 @@
+/* 
+ * =============================================
+ * edit-view.css
+ * - Edit/Create view specific styles
+ * - Form layout
+ * - Tag input area
+ * - Footer action buttons
+ * =============================================
+ */
+
+#edit-view .view-content {
+    display: flex;
+    flex-direction: column;
+}
+
+#prompt-form {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#prompt-form .form-group.content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#prompt-form .form-group.content .textarea-field {
+    flex-grow: 1;
+}
+
+.tag-input-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: calc(var(--spacing-unit) / 2);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: var(--border-radius);
+    background-color: var(--vscode-input-background);
+}
+
+.tag-input-container:focus-within {
+    border-color: var(--vscode-focus-border);
+    outline: 1px solid var(--vscode-focus-border);
+    outline-offset: -1px;
+}
+
+#tag-pills-container {
+    display: contents; /* Allows pills to be direct flex items of the container */
+}
+
+#tag-input-field {
+    border: none;
+    background: transparent;
+    padding: 4px;
+    flex-grow: 1;
+    min-width: 100px;
+}
+
+#tag-input-field:focus {
+    outline: none;
+}
+
+
+#edit-view-footer {
+    padding: var(--spacing-unit) calc(var(--spacing-unit) * 2);
+    border-top: 1px solid var(--vscode-border);
+    background-color: var(--vscode-sidebar-background);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-unit);
+}
+
+.form-actions .btn-danger {
+    margin-right: auto;
+} 

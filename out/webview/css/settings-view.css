@@ -1,0 +1,50 @@
+/* 
+ * =============================================
+ * settings-view.css
+ * - Settings view specific styles
+ * - Section blocks and cards
+ * - Data items for backup lists etc.
+ * =============================================
+ */
+
+#settings-view .settings-block {
+    margin-bottom: calc(var(--spacing-unit) * 3);
+}
+
+#settings-view .settings-block-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: var(--spacing-unit);
+    color: var(--vscode-secondary-foreground);
+    border-bottom: 1px solid var(--vscode-border);
+    padding-bottom: var(--spacing-unit);
+}
+
+#settings-view .settings-card {
+    background-color: var(--vscode-input-background);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--vscode-border);
+}
+
+#settings-view .settings-card .data-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-unit) calc(var(--spacing-unit) * 1.5);
+    border-bottom: 1px solid var(--vscode-border);
+}
+
+#settings-view .settings-card .data-item:last-child {
+    border-bottom: none;
+}
+
+#settings-view .data-item-info {
+    flex-grow: 1;
+}
+
+#settings-view .data-item-actions {
+    display: flex;
+    gap: var(--spacing-unit);
+    flex-shrink: 0;
+} 

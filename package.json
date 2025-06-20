@@ -1,11 +1,11 @@
 {
   "name": "lyfes-prompt-hub",
   "displayName": "Lyfe's Prompt Hub",
-  "description": "A powerful prompt management center for VS Code, designed to improve your interaction efficiency with AI.",
-  "version": "0.6.3",
+  "description": "A powerful prompt management center to streamline your daily development and writing tasks.",
+  "version": "0.6.6",
   "publisher": "Lyfe",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "Other"
@@ -202,12 +202,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/laifu2025/lyfes-prompt-hub.git"
+    "url": "https://github.com/laifu2025/lyfes-cursor-rules.git"
   },
-  "bugs": {
-    "url": "https://github.com/laifu2025/lyfes-prompt-hub/issues"
-  },
-  "homepage": "https://github.com/laifu2025/lyfes-prompt-hub#readme",
   "author": "Lyfe",
   "license": "MIT"
 } 

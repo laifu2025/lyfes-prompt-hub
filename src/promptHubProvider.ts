@@ -36,9 +36,6 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-        // Notify the webview that the backend is ready
-        this._postMessage({ type: 'backendReady' });
-
         // 处理来自webview的消息
         webviewView.webview.onDidReceiveMessage(
             async (message) => {
@@ -148,7 +145,7 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                     this._postMessage({ type: 'storageInfoResponse', requestId: message.requestId, success: false, error: String(error) });
                 }
                 break;
-            }
+                }
             case 'toggleWorkspaceMode': {
                 try {
                     // 后端自主决定如何切换，而不是依赖前端传递状态

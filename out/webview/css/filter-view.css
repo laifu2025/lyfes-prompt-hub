@@ -1,0 +1,49 @@
+/* 
+ * =============================================
+ * filter-view.css
+ * - Filter view specific styles
+ * - Filter groups and option buttons
+ * =============================================
+ */
+
+#filter-view .filter-group {
+    margin-bottom: calc(var(--spacing-unit) * 3);
+}
+
+#filter-view .filter-group h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: var(--spacing-unit);
+    color: var(--vscode-secondary-foreground);
+}
+
+#filter-view .filter-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-unit);
+}
+
+#filter-view .filter-btn {
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    color: var(--vscode-secondary-foreground);
+}
+
+#filter-view .filter-btn:hover {
+    border-color: var(--vscode-focus-border);
+    color: var(--vscode-foreground);
+}
+
+#filter-view .filter-btn.active {
+    background-color: var(--vscode-list-active-selection-background);
+    color: var(--vscode-foreground);
+    border-color: var(--vscode-focus-border);
+}
+
+#filter-view .form-actions {
+    margin-top: calc(var(--spacing-unit) * 4);
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-unit);
+} 

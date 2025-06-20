@@ -1,0 +1,82 @@
+/* 
+ * =============================================
+ * category-view.css
+ * - Category management view specific styles
+ * - List layout and items
+ * - Inline editing styles
+ * - Action buttons on hover
+ * =============================================
+ */
+
+#category-view .view-header .view-title {
+    flex-grow: 1;
+    text-align: left;
+    padding-left: 24px; /* Space for back button */
+}
+
+#category-view .view-header .btn-icon {
+    margin-left: auto; /* Push + button to the right */
+    flex-shrink: 0;
+}
+
+#category-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--spacing-unit) / 2);
+}
+
+.category-list-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-unit) calc(var(--spacing-unit) * 1.5);
+    border-radius: var(--border-radius);
+    background-color: var(--vscode-input-background);
+}
+
+.category-list-item:hover {
+    background-color: var(--vscode-list-hover-background);
+}
+
+.category-name {
+    flex-grow: 1;
+    padding: 4px 0; /* Align with input padding */
+}
+
+.category-input {
+    flex-grow: 1;
+    padding: 4px 6px;
+    margin: -4px -6px; /* Absorb padding to align perfectly */
+    border: 1px solid var(--vscode-focus-border);
+    background-color: var(--vscode-input-background);
+}
+.category-input:focus {
+    outline: none;
+}
+
+.category-list-item .category-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-unit);
+    visibility: hidden;
+}
+
+.category-list-item:hover .category-actions,
+.category-list-item.editing .category-actions {
+    visibility: visible;
+}
+
+.category-list-item.editing .edit-category-btn,
+.category-list-item:not(.editing) .save-category-btn,
+.category-list-item:not(.editing) .cancel-edit-btn {
+    display: none;
+}
+
+.category-list-item .category-name,
+.category-list-item.editing .category-input {
+    display: block;
+}
+
+.category-list-item.editing .category-name,
+.category-list-item:not(.editing) .category-input {
+    display: none;
+} 

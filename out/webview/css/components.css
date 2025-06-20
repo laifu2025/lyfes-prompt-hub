@@ -1,0 +1,320 @@
+/* 
+ * =============================================
+ * components.css
+ * - 可重用UI组件的样式
+ * - Buttons (.btn, .btn-primary, etc.)
+ * - Form Controls (.input-field, .textarea-field)
+ * - Switch toggle
+ * - Tags (.tag, .tag-pill)
+ * - Modals
+ * - Badges (.status-badge)
+ * - Custom Dropdowns
+ * =============================================
+ */
+
+/* --- Form Controls --- */
+.input-field, .textarea-field {
+    width: 100%;
+    padding: 6px 12px;
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: var(--border-radius);
+    color: var(--vscode-foreground);
+    font-family: var(--font-family);
+}
+
+.textarea-field {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.input-field:focus, .textarea-field:focus {
+    outline: 1px solid var(--vscode-focus-border);
+    outline-offset: -1px;
+    border-color: var(--vscode-focus-border);
+}
+
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon .input-field {
+    padding-left: calc(var(--spacing-unit) * 4);
+}
+
+.input-with-icon svg {
+    position: absolute;
+    left: calc(var(--spacing-unit) * 1.5);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--vscode-secondary-foreground);
+}
+
+
+/* --- Buttons --- */
+.btn, .btn-primary, .btn-secondary, .btn-icon {
+    border: 1px solid transparent;
+    border-radius: var(--border-radius);
+    padding: 6px 12px;
+    cursor: pointer;
+    text-align: center;
+    font-family: var(--font-family);
+    font-size: 13px;
+}
+
+.btn-primary {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground, #fff);
+    border-color: var(--vscode-button-background);
+}
+
+.btn-primary:hover {
+    background-color: var(--vscode-button-hover-background);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: var(--vscode-foreground);
+    border-color: var(--vscode-border);
+}
+
+.btn-secondary:hover {
+    background-color: var(--vscode-list-hover-background);
+}
+
+.btn-danger {
+    background-color: rgba(239, 83, 80, 0.1);
+    color: var(--vscode-error-foreground);
+    border-color: transparent;
+}
+
+.btn-danger:hover {
+    background-color: rgba(239, 83, 80, 0.2);
+    border-color: transparent;
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--vscode-secondary-foreground);
+    border-radius: var(--border-radius);
+    opacity: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover {
+    background-color: var(--vscode-list-hover-background);
+    color: var(--vscode-foreground);
+}
+
+.btn-icon svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+.btn-icon.btn-danger {
+    color: var(--vscode-error-foreground);
+    opacity: 0.8;
+}
+
+.btn-icon.btn-danger:hover {
+    background-color: rgba(239, 83, 80, 0.15);
+    opacity: 1;
+}
+
+.btn-back {
+    margin-right: var(--spacing-unit);
+    color: var(--vscode-icon-foreground);
+}
+
+/* --- Switch --- */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    transition: .4s;
+    border-radius: 22px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--vscode-secondary-foreground);
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--vscode-button-background);
+    border-color: var(--vscode-button-background);
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px var(--vscode-button-background);
+}
+
+input:checked + .slider:before {
+    transform: translateX(16px);
+    background-color: var(--vscode-button-foreground, white);
+}
+
+/* --- Tags --- */
+.tag, .tag-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-secondary-foreground);
+    border: 1px solid var(--vscode-input-border);
+    margin: 2px;
+}
+
+.tag-pill {
+    display: inline-flex;
+    align-items: center;
+    padding-right: 4px;
+}
+
+.tag-pill:hover {
+    border-color: var(--vscode-focus-border);
+}
+
+.tag-remove-btn {
+    background: none;
+    border: none;
+    color: var(--vscode-secondary-foreground);
+    cursor: pointer;
+    margin-left: 4px;
+    padding: 0 2px;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: bold;
+}
+
+.tag-remove-btn:hover {
+    color: var(--vscode-foreground);
+}
+
+/* --- Modal --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: var(--vscode-sidebar-background);
+    padding: calc(var(--spacing-unit) * 3);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--vscode-border);
+    width: 80%;
+    max-width: 500px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.modal-close-btn {
+    float: right;
+    margin-top: -8px;
+    margin-right: -8px;
+}
+
+/* --- Status Badge --- */
+.status-badge {
+    padding: 2px 6px;
+    border-radius: var(--border-radius);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.success {
+    background-color: rgba(76, 175, 80, 0.2);
+    color: #4caf50;
+}
+
+.status-badge.error {
+    background-color: rgba(244, 67, 54, 0.2);
+    color: var(--vscode-error-foreground);
+}
+
+.status-badge.info {
+    background-color: rgba(33, 150, 243, 0.2);
+    color: #2196f3;
+}
+
+.status-badge.warning {
+    background-color: rgba(255, 152, 0, 0.2);
+    color: #ff9800;
+}
+
+
+/* --- Custom Dropdown --- */
+.custom-select-wrapper {
+    position: relative;
+}
+
+.custom-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-border);
+    border-radius: var(--border-radius);
+    margin-top: 4px;
+    z-index: 100;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.dropdown-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--vscode-border);
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover, .dropdown-item.active {
+    background-color: var(--vscode-list-hover-background);
+} 
