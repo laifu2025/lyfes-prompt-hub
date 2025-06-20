@@ -34,7 +34,7 @@ function init() {
             state.appData = data;
             state.prompts = data.prompts || [];
             renderAll();
-            showToast('数据已手动刷新', 'success');
+            api.postMessageWithResponse('showNotification', { message: '数据已刷新', type: 'info' });
         }
     });
 
