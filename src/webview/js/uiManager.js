@@ -96,6 +96,7 @@ export function renderPrompts() {
 }
 
 export function renderCategoryDropdown() {
+    const { categorySelect, categoryDropdownMenu } = dom.editViewElements;
     const categories = state.appData?.categories || [];
     dom.categoryDropdownMenu.innerHTML = categories.map(cat => `
         <div class="dropdown-item" data-value="${cat}">${cat}</div>
@@ -104,7 +105,10 @@ export function renderCategoryDropdown() {
 
 export function renderTags() {
     dom.tagPillsContainer.innerHTML = state.currentTags.map(tag => `
-        <span class="tag-pill">${tag}<button type="button" class="tag-remove-btn" data-tag="${tag}">&times;</button></span>`).join('');
+        <span class="tag-pill">
+            ${tag}
+            <button type="button" class="tag-remove-btn" data-tag="${tag}">&times;</button>
+        </span>`).join('');
 }
 
 export function updateCategories() {
@@ -125,19 +129,24 @@ export function updateFilterView() {
         btn.classList.toggle('active', btn.dataset.status === state.stagedFilter.status);
     });
 
-    // Render and Update Tag Buttons
-    const allTags = state.prompts.reduce((acc, p) => {
-        // Ensure tags is an array before spreading
-        return p && p.tags ? [...acc, ...p.tags] : acc;
-    }, []);
-    const uniqueTags = ['all', ...new Set(allTags)];
-    
+    // Render Tag Buttons on first load or if they don't exist
     const tagContainer = document.getElementById('tag-filter-options');
-    if(tagContainer) {
+    if (tagContainer.children.length === 0) {
+        const allTags = state.prompts.reduce((acc, p) => {
+            return p && p.tags ? [...acc, ...p.tags] : acc;
+        }, []);
+        const uniqueTags = ['all', ...new Set(allTags)];
         tagContainer.innerHTML = uniqueTags.map(tag => 
-            `<button class="btn filter-btn ${state.stagedFilter.selectedTags.includes(tag) ? 'active' : ''}" data-tag="${tag}">${tag === 'all' ? '全部' : tag}</button>`
+            `<button class="btn filter-btn" data-tag="${tag}">${tag === 'all' ? '全部' : tag}</button>`
         ).join('');
     }
+
+    // Update active state for all tag buttons
+    tagContainer.querySelectorAll('.filter-btn').forEach(btn => {
+        const tag = btn.dataset.tag;
+        const isActive = state.stagedFilter.selectedTags.includes(tag);
+        btn.classList.toggle('active', isActive);
+    });
 }
 
 // --- Forms & UI State ---

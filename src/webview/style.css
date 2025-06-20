@@ -705,25 +705,27 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 
 .tag-remove-btn {
-    margin-left: 6px;
-    padding: 0;
+    background: rgba(0,0,0,0.1);
+    border: none;
+    border-radius: 50%;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
     width: 16px;
     height: 16px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    color: var(--vscode-secondary-foreground);
-    cursor: pointer;
-    font-size: 16px;
-    line-height: 1;
+    margin-left: 6px;
+    padding: 0;
     opacity: 0.7;
+    transition: all 0.2s ease;
 }
 
 .tag-remove-btn:hover {
-    background-color: rgba(128, 128, 128, 0.5);
+    background: rgba(0,0,0,0.2);
+    opacity: 1;
     color: #fff;
+    background-color: var(--vscode-errorForeground, #f44747);
 }
 
 .all-tags-container {
@@ -1020,4 +1022,42 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 .hidden {
     display: none !important;
+}
+
+.dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-border);
+    border-radius: var(--border-radius);
+    padding: 4px;
+    z-index: 100;
+    min-width: 180px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.dropdown-menu .dropdown-item {
+    display: block;
+    padding: 8px 12px;
+    color: var(--vscode-foreground);
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.dropdown-menu .dropdown-item:hover {
+    background-color: var(--vscode-list-hover-background);
+}
+
+.dropdown-divider {
+    height: 1px;
+    margin: 4px 0;
+    overflow: hidden;
+    background-color: var(--vscode-border);
 } 

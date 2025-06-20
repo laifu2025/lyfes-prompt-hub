@@ -4,8 +4,8 @@ import { navigateTo, goBack, renderAll, showToast, renderSettingsStatus } from '
 import * as mainView from './views/mainView.js';
 import * as editView from './views/editView.js';
 import * as categoryView from './views/categoryView.js';
-import * as filterView from './views/filterView.js';
 import * as settingsView from './views/settingsView.js';
+import { initEventListeners } from './eventHandlers.js';
 // Import other views later
 // import SettingsView from './views/settingsView.js';
 // import FilterView from './views/filterView.js';
@@ -52,8 +52,8 @@ function init() {
     mainView.init();
     editView.init(initialLoad);
     categoryView.init(initialLoad);
-    filterView.init();
     settingsView.init(initialLoad);
+    initEventListeners();
     
     Object.values(dom.views).forEach(view => {
         const backButton = view.querySelector('.btn-back');

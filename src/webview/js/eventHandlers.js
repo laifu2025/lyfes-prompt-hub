@@ -10,14 +10,16 @@ async function handleDataAction(action, messages = {}, payload = {}) {
         error = '操作失败，请重试'
     } = messages;
 
-    ui.showToast(loading, 'info', 2000);
+    // ui.showToast(loading, 'info', 2000); // We can remove the loading toast for now
     try {
         const response = await postMessageWithResponse(action, payload);
-        ui.showToast(success, 'success');
+        // Use VS Code notifications for success
+        postMessageWithResponse('showNotification', { message: success, type: 'info' });
         return response;
     } catch (err) {
         console.error(`${action} failed:`, err);
-        ui.showToast(err.message || error, 'error');
+        // Use VS Code notifications for error
+        postMessageWithResponse('showNotification', { message: err.message || error, type: 'error' });
         throw err; // Re-throw for further handling if needed
     }
 }
@@ -203,28 +205,58 @@ export function initEventListeners() {
         const tagBtn = e.target.closest('.filter-btn');
          if (tagBtn && state.stagedFilter) {
             const tag = tagBtn.dataset.tag;
+            const selectedTags = state.stagedFilter.selectedTags;
+
             if (tag === 'all') {
+                // If 'all' is clicked, it becomes the only selected tag.
                 state.stagedFilter.selectedTags = ['all'];
             } else {
-                state.stagedFilter.selectedTags = state.stagedFilter.selectedTags.filter(t => t !== 'all');
-                const index = state.stagedFilter.selectedTags.indexOf(tag);
+                const index = selectedTags.indexOf(tag);
+                // Always remove 'all' when a specific tag is interacted with.
+                const allIndex = selectedTags.indexOf('all');
+                if (allIndex > -1) {
+                    selectedTags.splice(allIndex, 1);
+                }
+
                 if (index > -1) {
-                    state.stagedFilter.selectedTags.splice(index, 1);
-                     if (state.stagedFilter.selectedTags.length === 0) {
-                        state.stagedFilter.selectedTags.push('all');
-                    }
+                    // If tag is already selected, deselect it.
+                    selectedTags.splice(index, 1);
                 } else {
-                    state.stagedFilter.selectedTags.push(tag);
+                    // Otherwise, select it.
+                    selectedTags.push(tag);
+                }
+
+                // If no specific tags remain, revert to 'all'.
+                if (selectedTags.length === 0) {
+                    state.stagedFilter.selectedTags = ['all'];
                 }
             }
             ui.updateFilterView();
         }
     });
 
-     // --- Settings View Actions ---
-    document.getElementById('toggle-workspace-mode-btn')?.addEventListener('click', () => {
-        handleDataAction('toggleWorkspaceMode', { success: '存储模式已切换' }).then(fetchAndRenderSettingsStatus);
-    });
+    // --- Settings View Actions ---
+    document.getElementById('settings-view')?.addEventListener('click', e => {
+        console.log('Settings view clicked. Target:', e.target);
+        const target = e.target.closest('button');
+        if (!target) return;
 
-    // Add other settings buttons here... e.g., import, export
+        console.log('Button clicked:', target.id);
+
+        const handlers = {
+            'import-btn': () => handleDataAction('importData', { success: '数据导入成功！', error: '导入失败' }),
+            'export-btn': () => handleDataAction('exportData', { success: '数据导出成功！', error: '导出失败' }),
+            'create-backup-btn': () => handleDataAction('createBackup', { success: '备份创建成功！', error: '备份失败' }),
+            'restore-backup-btn': () => handleDataAction('restoreBackup', { success: '备份恢复成功！', error: '恢复失败' }),
+            'setup-cloud-sync-btn': () => postMessageWithResponse('setupCloudSync'),
+            'sync-to-cloud-btn': () => handleDataAction('syncToCloud', { success: '同步到云端成功！', error: '同步失败' }),
+            'sync-from-cloud-btn': () => handleDataAction('syncFromCloud', { success: '从云端同步成功！', error: '同步失败' }),
+            'show-storage-info-btn': () => postMessageWithResponse('getStorageInfo'),
+            'toggle-workspace-mode-btn': () => handleDataAction('toggleWorkspaceMode', { success: '存储模式已切换' }).then(fetchAndRenderSettingsStatus),
+        };
+
+        if (handlers[target.id]) {
+            handlers[target.id]();
+        }
+    });
 }

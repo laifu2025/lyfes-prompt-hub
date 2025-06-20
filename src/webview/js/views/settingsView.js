@@ -45,41 +45,9 @@ function handleToggleWorkspaceMode() {
         .catch(err => showToast(`切换失败: ${err.message}`, 'error'));
 }
 
-function setupDataManagementListeners() {
-    dom.settingsViewElements.importButton.addEventListener('click', handleImport);
-    dom.settingsViewElements.exportButton.addEventListener('click', handleExport);
-    dom.settingsViewElements.createBackupButton.addEventListener('click', handleCreateBackup);
-    dom.settingsViewElements.restoreBackupButton.addEventListener('click', handleRestoreBackup);
-    dom.settingsViewElements.toggleWorkspaceModeButton.addEventListener('click', handleToggleWorkspaceMode);
-}
-
-function setupCloudSyncListeners() {
-    dom.settingsViewElements.setupCloudSyncButton.addEventListener('click', () => {
-        api.postMessage({ command: 'setupCloudSync' });
-    });
-
-    dom.settingsViewElements.syncToCloudButton.addEventListener('click', () => {
-        api.postMessage({ command: 'syncToCloud' });
-    });
-
-    dom.settingsViewElements.syncFromCloudButton.addEventListener('click', () => {
-        api.postMessage({ command: 'syncFromCloud' });
-    });
-}
-
-function setupStorageModeListeners() {
-    dom.settingsViewElements.showStorageInfoButton.addEventListener('click', () => {
-        api.postMessage({ command: 'getStorageInfo' });
-    });
-}
-
 export function init(refreshFunc) {
     if (refreshFunc) {
         refreshCallback = refreshFunc;
     }
     dom.mainViewElements.settingsButton.addEventListener('click', () => navigateTo('settings'));
-    
-    setupDataManagementListeners();
-    setupCloudSyncListeners();
-    setupStorageModeListeners();
 } 

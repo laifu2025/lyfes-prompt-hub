@@ -27,7 +27,7 @@ function createCategoryItemElement(categoryName, isEditing = false, isNew = fals
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
             </button>
             <button class="btn-icon btn-delete" title="删除">
-                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-1 1v1H4a1 1 0 000 2h1v9a2 2 0 002 2h6a2 2 0 002-2V6h1a1 1 0 100-2h-4V3a1 1 0 00-1-1H9zm7 5a1 1 0 10-2 0v9a1 1 0 11-2 0V7a1 1 0 10-2 0v9a1 1 0 102 0V7a1 1 0 102 0V7z" clip-rule="evenodd" /></svg>
+                 <svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.5 3h3v1h-1v9.5a1.5 1.5 0 0 1-1.5 1.5h-5A1.5 1.5 0 0 1 4 13.5V4h-1V3h3V2.5A1.5 1.5 0 0 1 7.5 1h1A1.5 1.5 0 0 1 10 2.5v.5Zm-4 1h-1v9.5a.5.5 0 0 0 .5.5h5a.5.5 0 0 0 .5-.5V4h-1v9H6.5V4Zm2-1.5V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5V3h2Z"/></svg>
             </button>
         </div>
     `;
@@ -50,7 +50,7 @@ function handleAddCategory() {
 }
 
 function handleDeleteCategory(name) {
-     api.postMessageWithResponse('showConfirmation', { message: `确定要删除分类 "${name}" 吗？该分类下的 Prompts 将被移动到 "未分类"。` })
+    api.postMessageWithResponse('showConfirmation', { message: `确定要删除分类 "${name}" 吗？` })
         .then(result => {
             if (result.confirmed) {
                 return api.postMessageWithResponse('deleteCategory', { name });
@@ -61,7 +61,8 @@ function handleDeleteCategory(name) {
             refreshCallback();
         }).catch(err => {
             if (err !== '取消删除') {
-                showToast(err.message || '删除失败', 'error');
+                const errorMessage = err.message || '删除失败';
+                showToast(errorMessage, 'error');
             }
         });
 }
@@ -176,7 +177,6 @@ export function render() {
     const categories = state.appData?.categories || [];
     container.innerHTML = ''; // Clear the list first
     categories
-        .filter(c => c !== '未分类') // "Uncategorized" should not be managed
         .forEach(category => {
             const item = createCategoryItemElement(category);
             container.appendChild(item);

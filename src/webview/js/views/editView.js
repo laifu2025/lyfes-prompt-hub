@@ -10,13 +10,18 @@ function renderAvailableTags() {
     if (!container) return;
 
     const available = allTagsCache.filter(t => !state.currentTags.includes(t));
-    container.innerHTML = available.map(tag => `<span class="tag">${tag}</span>`).join('');
+    container.innerHTML = available.map(tag => `
+        <span class="tag-pill available-tag">
+            ${tag}
+            <button type="button" class="tag-remove-btn permanent-delete" data-tag="${tag}" title="永久删除该标签">&times;</button>
+        </span>
+    `).join('');
     container.classList.toggle('hidden', available.length === 0);
 }
 
 function handleAvailableTagClick(e) {
-    if (e.target.classList.contains('tag')) {
-        const tag = e.target.textContent;
+    if (e.target.classList.contains('available-tag')) {
+        const tag = e.target.textContent.replace(/×$/, '').trim();
         if (tag && !state.currentTags.includes(tag)) {
             state.currentTags.push(tag);
             renderTags();
@@ -102,6 +107,36 @@ function handleTagPillRemove(e) {
     }
 }
 
+function handleTagPillDelete(e) {
+    const deleteButton = e.target.closest('.tag-remove-btn.permanent-delete');
+    if (deleteButton) {
+        const tagToDelete = deleteButton.dataset.tag;
+        
+        api.postMessageWithResponse('showConfirmation', { message: `确定要从所有 Prompts 中永久删除标签 '${tagToDelete}' 吗？\n\n此操作无法撤销。` })
+            .then(result => {
+                if (result.confirmed) {
+                    return api.postMessageWithResponse('deleteTag', { name: tagToDelete });
+                }
+                return Promise.reject('取消删除');
+            })
+            .then(() => {
+                showToast(`标签 '${tagToDelete}' 已被永久删除。`, 'success');
+                // Remove from current view
+                state.currentTags = state.currentTags.filter(tag => tag !== tagToDelete);
+                allTagsCache = allTagsCache.filter(tag => tag !== tagToDelete);
+                renderTags();
+                renderAvailableTags();
+                // Optionally, trigger a full refresh if other parts of the app need to know
+                refreshCallback();
+            })
+            .catch(err => {
+                if (err !== '取消删除') {
+                    showToast(`删除标签失败: ${err.message || err}`, 'error');
+                }
+            });
+    }
+}
+
 function handleCategoryDropdownInteraction(e) {
     const { categoryWrapper, categoryDropdownMenu, categorySelect } = dom.editViewElements;
 
@@ -137,6 +172,7 @@ export function init(refreshFunc) {
     elements.tagsInput.addEventListener('keydown', handleTagInput);
     
     dom.tagPillsContainer.addEventListener('click', handleTagPillRemove);
+    elements.allTagsContainer.addEventListener('click', handleTagPillDelete);
     elements.allTagsContainer.addEventListener('click', handleAvailableTagClick);
     document.addEventListener('click', handleCategoryDropdownInteraction);
 

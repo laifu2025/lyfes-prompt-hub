@@ -60,6 +60,12 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 this._postMessage({ type: 'allTagsResponse', requestId: message.requestId, success: true, data: tags });
                 break;
             }
+
+            case 'getCategoryPromptCount': {
+                const count = await this._dataManager.getCategoryPromptCount(payload.name);
+                this._postMessage({ type: 'categoryPromptCountResponse', requestId: message.requestId, success: true, data: { count } });
+                break;
+            }
             
             case 'savePrompt': {
                 await this._dataManager.savePrompt(payload.prompt);
@@ -82,6 +88,12 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 break;
             }
 
+            case 'deleteTag': {
+                await this._dataManager.deleteTag(payload.name);
+                this._postMessage({ type: 'deleteTagResponse', requestId: message.requestId, success: true });
+                break;
+            }
+
             case 'deleteCategory': {
                 await this._dataManager.deleteCategory(payload.name);
                 this._postMessage({ type: 'deleteCategoryResponse', requestId: message.requestId, success: true });
@@ -99,6 +111,14 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
             case 'setPromptActive': {
                 await this._dataManager.setPromptActive(payload.id, payload.isActive);
                 this._postMessage({ type: 'setPromptActiveResponse', requestId: message.requestId, success: true });
+                break;
+            }
+
+            case 'showNotification': {
+                this._showNotification(payload.message, payload.type);
+                // This is a fire-and-forget message, so we don't need to send a response back.
+                // However, if the frontend uses `postMessageWithResponse`, it needs a reply.
+                this._postMessage({ type: 'notificationResponse', requestId: message.requestId, success: true });
                 break;
             }
 
@@ -173,7 +193,11 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
     private showError(error: any, requestId?: string): void {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error('Error handling webview message:', error);
-        this._showNotification(`发生错误: ${errorMessage}`, 'error');
-        this._postMessage({ type: 'error', requestId, message: `操作失败: ${errorMessage}` });
+        
+        // Post the specific error message back to the webview
+        this._postMessage({ type: 'error', requestId, message: errorMessage });
+        
+        // Also show a generic notification in the VS Code window itself, but the webview gets the detail.
+        this._showNotification(`操作失败: ${errorMessage}`, 'error');
     }
 }

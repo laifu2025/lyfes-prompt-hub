@@ -52,7 +52,7 @@ export class DataManager {
     public async getAppData(): Promise<AppData> {
         const defaultData: AppData = {
             prompts: [],
-            categories: ['未分类'],
+            categories: [],
             settings: {
                 autoBackup: true,
                 backupInterval: 30,
@@ -79,7 +79,7 @@ export class DataManager {
             }
             
             if (savedData) {
-                savedData.categories = savedData.categories && savedData.categories.length > 0 ? savedData.categories : defaultData.categories;
+                savedData.categories = savedData.categories || defaultData.categories;
                 const mergedData = {
                     ...defaultData,
                     ...savedData,
@@ -172,7 +172,7 @@ export class DataManager {
                 id: Date.now(),
                 title: promptData.title || '无标题',
                 content: promptData.content || '',
-                category: promptData.category || '未分类',
+                category: promptData.category || '',
                 tags: promptData.tags || [],
                 isActive: promptData.isActive === false ? false : true,
                 createdAt: now,
@@ -192,6 +192,11 @@ export class DataManager {
         const appData = await this.getAppData();
         appData.prompts = appData.prompts.filter(p => p.id != promptId);
         await this.saveAppData(appData);
+    }
+
+    public async getCategoryPromptCount(categoryName: string): Promise<number> {
+        const appData = await this.getAppData();
+        return appData.prompts.filter(p => p.category === categoryName).length;
     }
 
     public async addCategory(categoryName: string): Promise<AppData> {
@@ -223,22 +228,27 @@ export class DataManager {
     }
 
     public async deleteCategory(categoryName: string): Promise<AppData> {
-        if (categoryName === '未分类') {
-            throw new Error('不能删除 "未分类" 这个默认分类。');
+        const appData = await this.getAppData();
+        const promptCount = appData.prompts.filter(p => p.category === categoryName).length;
+
+        if (promptCount > 0) {
+            throw new Error(`分类 "${categoryName}" 下有 ${promptCount} 个 Prompts，无法删除。`);
         }
         
-        const appData = await this.getAppData();
-        
-        // Move all prompts from the deleted category to 'Uncategorized'
-        appData.prompts.forEach(p => {
-            if (p.category === categoryName) {
-                p.category = '未分类';
-            }
-        });
-
         // Remove the category from the list
         appData.categories = appData.categories.filter(c => c !== categoryName);
         
+        await this.saveAppData(appData);
+        return appData;
+    }
+
+    public async deleteTag(tagName: string): Promise<AppData> {
+        const appData = await this.getAppData();
+        appData.prompts.forEach(p => {
+            if (p.tags && p.tags.includes(tagName)) {
+                p.tags = p.tags.filter(t => t !== tagName);
+            }
+        });
         await this.saveAppData(appData);
         return appData;
     }
