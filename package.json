@@ -1,0 +1,213 @@
+{
+  "name": "lyfes-prompt-hub",
+  "displayName": "Lyfe's Prompt Hub",
+  "description": "A powerful prompt management center for VS Code, designed to improve your interaction efficiency with AI.",
+  "version": "0.6.3",
+  "publisher": "Lyfe",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "promptHub",
+          "title": "Prompt Hub",
+          "icon": "$(book)"
+        }
+      ]
+    },
+    "views": {
+      "promptHub": [
+        {
+          "id": "promptHubView",
+          "name": "Prompt Hub",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "promptHub.openPanel",
+        "title": "打开 Prompt Hub",
+        "icon": "$(book)"
+      },
+      {
+        "command": "promptHub.refresh",
+        "title": "刷新",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "promptHub.exportData",
+        "title": "导出数据",
+        "icon": "$(export)"
+      },
+      {
+        "command": "promptHub.importData",
+        "title": "导入数据",
+        "icon": "$(import)"
+      },
+      {
+        "command": "promptHub.createBackup",
+        "title": "创建备份",
+        "icon": "$(save-as)"
+      },
+      {
+        "command": "promptHub.restoreBackup",
+        "title": "恢复备份",
+        "icon": "$(history)"
+      },
+      {
+        "command": "promptHub.setupCloudSync",
+        "title": "设置云同步",
+        "icon": "$(cloud)"
+      },
+      {
+        "command": "promptHub.syncToCloud",
+        "title": "同步到云端",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "promptHub.syncFromCloud",
+        "title": "从云端同步",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "promptHub.toggleWorkspaceMode",
+        "title": "切换存储模式",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "promptHub.showStorageInfo",
+        "title": "查看存储信息",
+        "icon": "$(info)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "promptHub.refresh",
+          "when": "view == promptHubView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "promptHub.showStorageInfo",
+          "when": "view == promptHubView",
+          "group": "info@1"
+        },
+        {
+          "command": "promptHub.toggleWorkspaceMode",
+          "when": "view == promptHubView",
+          "group": "mode@1"
+        },
+        {
+          "command": "promptHub.createBackup",
+          "when": "view == promptHubView",
+          "group": "backup@1"
+        },
+        {
+          "command": "promptHub.restoreBackup",
+          "when": "view == promptHubView",
+          "group": "backup@2"
+        },
+        {
+          "command": "promptHub.exportData",
+          "when": "view == promptHubView",
+          "group": "data@1"
+        },
+        {
+          "command": "promptHub.importData",
+          "when": "view == promptHubView",
+          "group": "data@2"
+        },
+        {
+          "command": "promptHub.setupCloudSync",
+          "when": "view == promptHubView",
+          "group": "sync@1"
+        },
+        {
+          "command": "promptHub.syncToCloud",
+          "when": "view == promptHubView",
+          "group": "sync@2"
+        },
+        {
+          "command": "promptHub.syncFromCloud",
+          "when": "view == promptHubView",
+          "group": "sync@3"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "promptHub.openPanel"
+        },
+        {
+          "command": "promptHub.refresh"
+        },
+        {
+          "command": "promptHub.exportData"
+        },
+        {
+          "command": "promptHub.importData"
+        },
+        {
+          "command": "promptHub.createBackup"
+        },
+        {
+          "command": "promptHub.restoreBackup"
+        },
+        {
+          "command": "promptHub.setupCloudSync"
+        },
+        {
+          "command": "promptHub.syncToCloud"
+        },
+        {
+          "command": "promptHub.syncFromCloud"
+        },
+        {
+          "command": "promptHub.toggleWorkspaceMode"
+        },
+        {
+          "command": "promptHub.showStorageInfo"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./ && cpx \"src/webview/**/*.{html,css,js}\" out/webview && cpx \"src/webviewDataBridge.js\" out/webview",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "@vscode/test-electron": "^2.2.0",
+    "cpx": "^1.5.0",
+    "eslint": "^8.28.0",
+    "typescript": "^4.9.4",
+    "vsce": "^2.15.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/laifu2025/lyfes-prompt-hub.git"
+  },
+  "bugs": {
+    "url": "https://github.com/laifu2025/lyfes-prompt-hub/issues"
+  },
+  "homepage": "https://github.com/laifu2025/lyfes-prompt-hub#readme",
+  "author": "Lyfe",
+  "license": "MIT"
+} 

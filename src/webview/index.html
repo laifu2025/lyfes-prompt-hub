@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lyfe's Prompt Hub</title>
+    <link rel="stylesheet" href="__STYLE_URI__">
+    <script src="__BRIDGE_URI__" defer></script>
+    <script src="__SCRIPT_URI__" defer></script>
+</head>
+<body>
+
+    <div id="prompt-hub-wrapper">
+        <!-- 
+         * =============================================
+         * HTML Structure
+         * 这是应用的骨架. 我将界面分成了多个"视图"(View)，
+         * 比如主列表、编辑页、设置页。同一时间只显示一个视图。
+         * 这种模式类似于移动应用或单页面应用(SPA)的开发。
+         * =============================================
+         -->
+
+        <!-- 主视图 -->
+        <div id="main-view" class="view">
+            <header id="main-view-header">
+                <div id="search-filter-bar">
+                    <div class="search-wrapper">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clip-rule="evenodd" /></svg>
+                        <input type="text" id="search-input" class="input-field" placeholder="搜索 Prompts...">
+                    </div>
+                     <button class="btn-icon" id="filter-btn" title="筛选和排序">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.59L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+                 <div class="header-actions">
+                    <button class="btn-icon" id="add-prompt-btn" title="创建新 Prompt">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
+                    </button>
+                     <button class="btn-icon" id="manage-categories-btn" title="管理分类">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" /></svg>
+                    </button>
+                    <button class="btn-icon" id="settings-btn" title="设置">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </header>
+            <div id="category-tabs-container">
+                <!-- Tabs will be dynamically generated here -->
+            </div>
+            <div id="prompt-list-container">
+                <!-- Prompts will be dynamically generated here -->
+                <p id="no-results-message" class="hidden">没有找到匹配的 Prompts。</p>
+            </div>
+        </div>
+        <!-- 编辑/创建视图 -->
+        <div id="edit-view" class="view hidden">
+            <header class="view-header">
+                <button class="btn-icon btn-back" title="返回上一页">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="currentColor" d="M12.78 15.78a.75.75 0 01-1.06 0L6.47 10.53a.75.75 0 010-1.06l5.25-5.25a.75.75 0 011.06 1.06L8.06 10l4.72 4.72a.75.75 0 010 1.06z"/></svg>
+                </button>
+                <h2 id="edit-view-title" class="view-title">创建 Prompt</h2>
+            </header>
+            <div class="view-content">
+                <form id="prompt-form">
+                    <input type="hidden" id="prompt-id">
+                    <div class="form-group">
+                        <label for="prompt-title">标题</label>
+                        <input type="text" id="prompt-title" class="input-field" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="prompt-content">内容</label>
+                        <textarea id="prompt-content" class="textarea-field" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="prompt-category">分类</label>
+                        <div class="custom-select-wrapper">
+                            <input type="text" id="prompt-category" class="input-field" placeholder="选择或创建分类..." autocomplete="off">
+                            <svg class="custom-select-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                                </svg>
+                            <div id="category-dropdown-menu" class="custom-dropdown-menu hidden">
+                                <!-- 由JS动态填充 -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="tag-input-field">标签 (输入后按回车)</label>
+                        <div class="tag-input-container">
+                             <div id="tag-pills-container"></div>
+                             <input type="text" id="tag-input-field" class="input-field" placeholder="添加标签...">
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-danger hidden" id="delete-prompt-btn">删除</button>
+                        <button type="button" class="btn btn-secondary" id="cancel-edit-btn">取消</button>
+                        <button type="submit" class="btn btn-primary" form="prompt-form">保存</button>
+                    </div>
+                </form>
+            </div>
+            <footer id="edit-view-footer" class="hidden">
+                <!-- This footer is now empty and hidden, content moved into the form -->
+            </footer>
+        </div>
+        <!-- 设置视图 -->
+        <div id="settings-view" class="view hidden">
+            <header class="view-header">
+                <button class="btn-icon btn-back" title="返回上一页">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="currentColor" d="M12.78 15.78a.75.75 0 01-1.06 0L6.47 10.53a.75.75 0 010-1.06l5.25-5.25a.75.75 0 011.06 1.06L8.06 10l4.72 4.72a.75.75 0 010 1.06z"/></svg>
+                </button>
+                <h2 class="view-title">设置</h2>
+            </header>
+            <div class="view-content">
+                <div class="settings-block">
+                    <h3 class="settings-block-title">数据管理</h3>
+                    <div class="settings-card">
+                        <div class="data-item">
+                            <span>从文件导入</span>
+                            <button class="btn btn-secondary" id="import-btn">导入 .json</button>
+                        </div>
+                         <div class="data-item">
+                            <span>导出到文件</span>
+                            <button class="btn btn-secondary" id="export-btn">导出 .json</button>
+                        </div>
+                         <div class="data-item">
+                            <span>创建备份</span>
+                            <button class="btn btn-secondary" id="create-backup-btn">创建备份</button>
+                        </div>
+                         <div class="data-item">
+                            <span>恢复备份</span>
+                            <button class="btn btn-secondary" id="restore-backup-btn">恢复备份</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-block">
+                    <h3 class="settings-block-title">云同步</h3>
+                    <div class="settings-card">
+                        <div class="data-item">
+                            <span>云同步状态</span>
+                            <span class="status-badge info" id="cloud-sync-status">未知</span>
+                        </div>
+                        <div class="data-item">
+                            <span>设置云同步</span>
+                            <button class="btn btn-secondary" id="setup-cloud-sync-btn">配置同步</button>
+                        </div>
+                         <div class="data-item">
+                            <span>同步到云端</span>
+                            <button class="btn btn-secondary" id="sync-to-cloud-btn" disabled>上传</button>
+                        </div>
+                         <div class="data-item">
+                            <span>从云端同步</span>
+                            <button class="btn btn-secondary" id="sync-from-cloud-btn" disabled>下载</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-block">
+                    <h3 class="settings-block-title">存储模式</h3>
+                    <div class="settings-card">
+                        <div class="data-item">
+                            <span>当前模式</span>
+                            <span class="status-badge info" id="storage-mode-status">未知</span>
+                        </div>
+                        <div class="data-item">
+                            <span>切换存储模式</span>
+                            <button class="btn btn-secondary" id="toggle-workspace-mode-btn">切换模式</button>
+                        </div>
+                         <div class="data-item">
+                            <span>查看存储信息</span>
+                            <button class="btn btn-secondary" id="show-storage-info-btn">查看信息</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- 筛选视图 -->
+        <div id="filter-view" class="view hidden">
+             <header class="view-header">
+                <button class="btn-icon btn-back" title="返回上一页">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="currentColor" d="M12.78 15.78a.75.75 0 01-1.06 0L6.47 10.53a.75.75 0 010-1.06l5.25-5.25a.75.75 0 011.06 1.06L8.06 10l4.72 4.72a.75.75 0 010 1.06z"/></svg>
+                </button>
+                <h2 class="view-title">筛选</h2>
+            </header>
+            <div class="view-content">
+                <div class="filter-group">
+                    <h3>状态</h3>
+                    <div id="status-options" class="filter-options">
+                         <button class="btn filter-btn active" data-status="all">全部</button>
+                         <button class="btn filter-btn" data-status="enabled">已启用</button>
+                         <button class="btn filter-btn" data-status="disabled">已禁用</button>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <h3>标签</h3>
+                    <div id="tag-filter-options" class="filter-options">
+                        <!-- 由JS动态生成 -->
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-secondary" id="filter-reset-btn">重置</button>
+                    <button class="btn btn-primary" id="filter-apply-btn">应用</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 分类管理视图 -->
+        <div id="category-view" class="view hidden">
+             <header class="view-header">
+                <button class="btn-icon btn-back" title="返回上一页">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="currentColor" d="M12.78 15.78a.75.75 0 01-1.06 0L6.47 10.53a.75.75 0 010-1.06l5.25-5.25a.75.75 0 011.06 1.06L8.06 10l4.72 4.72a.75.75 0 010 1.06z"/></svg>
+                </button>
+                <h2 class="view-title">分类管理</h2>
+            </header>
+            <div class="view-content">
+                <div id="category-list-container">
+                    <!-- 分类列表将由JS动态生成 -->
+                </div>
+                <div class="add-category-form">
+                    <input type="text" id="new-category-name" class="input-field" placeholder="输入新分类名称...">
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-secondary btn-back">取消</button>
+                    <button class="btn btn-primary" id="add-category-btn">添加分类</button>
+                </div>
+            </div>
+            <footer id="category-view-footer" class="hidden">
+                <!-- Buttons are now in the form-actions above -->
+            </footer>
+        </div>
+
+    </div>
+    <!-- 快捷操作 Modal -->
+    <div id="help-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="modal-close-btn" class="btn-icon" title="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+            <h2 style="margin-bottom: 20px;">快捷操作</h2>
+            <div class="data-item">
+                <span>快捷输入</span>
+                <span class="connection-status">输入 <kbd>/p</kbd> 或按下 <kbd>⇧</kbd><kbd>⌘</kbd><kbd>P</kbd></span>
+            </div>
+             <div class="data-item" style="border-bottom: none; padding-bottom: 0;">
+                <span>右键保存</span>
+                <span class="connection-status">选中文本 > 右键菜单</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Restore Backup Modal -->
+    <div id="restore-backup-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn btn-icon" title="关闭">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+            <h2>选择要恢复的备份</h2>
+            <div id="backup-list-container"></div>
+        </div>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,125 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 规则元信息
+## 规则名称
+typescript-rules.mdc
+## 规则描述
+本规则详细规定了在本项目中编写 TypeScript 代码时必须遵循的编码规范、最佳实践和风格指南。所有 TypeScript 代码都应严格遵守这些规则，以确保代码的一致性、可读性和可维护性。
+## 强制执行规则
+- 遵循 `tsconfig.json` 中的 `"strict": true` 配置，编写强类型、类型安全的代码。
+- 代码必须通过 ESLint 检查，没有任何错误。
+
+# Your rule content
+### RULE0：项目架构概述
+本项目是一个 **VS Code (Cursor) 扩展插件**，旨在提供一个高效的 Prompt 管理中心。其核心架构分为两大部分：
+
+1.  **扩展主机 (Extension Host)**:
+    *   **语言**: TypeScript (`/src` 目录)。
+    *   **入口文件**: `src/extension.ts`。
+    *   **职责**: 这是插件的后端和逻辑核心。它负责处理所有与 VS Code API 的交互，例如注册命令、创建视图、管理插件生命周期等。它也负责数据的读取、写入和管理（如 `src/dataManager.ts`）。
+    *   **运行环境**: 运行在 VS Code 的主进程中。
+
+2.  **Webview 视图 (Webview View)**:
+    *   **技术栈**: 原生 HTML, CSS, JavaScript (`/src/webview` 目录)。
+    *   **入口文件**: `src/webview/index.html`。
+    *   **职责**: 这是插件的用户界面 (UI)。它作为一个独立的网页嵌入在 VS Code 的侧边栏中，负责展示数据和响应用户操作（如点击按钮、输入文本等）。
+    *   **运行环境**: 运行在独立的沙箱环境中，不直接访问 VS Code API 或本地文件系统。
+
+3.  **通信机制**:
+    *   扩展主机和 Webview 视图之间通过一个**消息传递接口**进行通信。
+    *   **扩展主机 -> Webview**: 扩展主机通过 `webview.postMessage()` 方法将数据或指令发送到 Webview。
+    *   **Webview -> 扩展主机**: Webview 通过 `acquireVsCodeApi().postMessage()` 方法向扩展主机发送消息，以请求数据或触发后端操作。
+    *   文件 `src/webviewDataBridge.js` 可能与此通信桥有关。
+
+**开发者应明确自己正在修改的部分属于哪一层，并遵守各层的职责划分。**
+
+### RULE1：编码风格和格式
+1.  **遵循 PSR-12 衍生规范**:
+    *   使用4个空格进行缩进，禁止使用 Tab。
+    *   类名（Classes）和接口名（Interfaces）使用 `PascalCase`。
+    *   方法（methods）和变量（variables）使用 `camelCase`。
+    *   常量（constants）使用 `UPPER_SNAKE_CASE`。
+    *   枚举（Enums）名使用 `PascalCase`，其成员使用 `PascalCase`。
+2.  **文件名**:
+    *   文件名使用 `camelCase.ts` 格式，例如 `dataManager.ts`。
+3.  **分号**:
+    *   每条语句末尾必须加分号。
+4.  **代码行长度**:
+    *   每行代码的长度不应超过120个字符。
+
+### RULE2：类型和接口
+1.  **禁止使用 `any` 类型**:
+    *   除非在极特殊且不可避免的情况下，否则应完全禁止使用 `any` 类型。
+    *   如果类型确实未知，优先使用 `unknown`，并通过类型守卫（type guards）来缩小范围。
+2.  **类型推断**:
+    *   对于简单的、显而易见的类型（如 `string`, `number`, `boolean`），可以利用 TypeScript 的类型推断。
+    *   对于复杂的对象或函数返回值，必须显式声明类型或接口。
+3.  **接口优于类型别名**:
+    *   当定义对象结构时，优先使用 `interface`，因为它支持继承和声明合并，更具扩展性。
+    *   仅在需要联合类型、交叉类型或元组时使用 `type` 别名。
+    *   接口命名：使用 `I` 前缀不是强制的，但如果使用，请在整个项目中保持一致。推荐直接使用 `PascalCase`命名，如 `Prompt`。
+4.  **非空断言**:
+    *   谨慎使用非空断言操作符 `!`。使用它意味着你向编译器保证该值绝对不会是 `null` 或 `undefined`。滥用会导致运行时错误。请优先使用类型守卫或可选链 (`?.`)。
+
+### RULE3：模块和导入/导出
+1.  **ESM 语法**:
+    *   始终使用 ES6 的 `import`/`export` 语法。项目配置为 `commonjs` 模块系统，但 TypeScript 会正确转译。
+2.  **导入路径**:
+    *   使用相对路径进行内部模块导入，例如 `import { DataManager } from './dataManager';`。
+3.  **分组导入**:
+    *   将来自同一模块的多个导入合并到一条语句中。
+    *   导入顺序建议：第三方库 > `vscode` > 项目内部模块。
+
+### RULE4：VS Code API 使用规范
+1.  **API 导入**:
+    *   从 `vscode` 模块中显式导入所有需要的 API 对象。
+    *   示例: `import * as vscode from 'vscode';` 或 `import { window, commands, ExtensionContext } from 'vscode';`
+2.  **命令注册**:
+    *   所有命令ID都应在 `package.json` 的 `contributes.commands` 部分声明，并在代码中使用常量来引用，避免硬编码字符串。
+3.  **资源管理 (`IDisposable`)**:
+    *   所有通过 `register*` 方法（如 `commands.registerCommand`）注册的监听器、命令等，都返回一个 `IDisposable` 对象。
+    *   必须将这些对象收集到 `context.subscriptions` 数组中，以便在扩展停用时由 VS Code 自动清理，防止内存泄漏。
+    *   示例：`context.subscriptions.push(vscode.commands.registerCommand('myCommand.id', () => { ... }));`
+4.  **用户通知**:
+    *   使用 `vscode.window.showInformationMessage`, `showWarningMessage`, `showErrorMessage` 与用户交互。不要使用 `console.log` 向用户显示信息。
+
+### RULE5：错误处理
+1.  **使用 `try...catch`**:
+    *   在所有可能抛出异常的操作（如文件I/O、API调用）周围使用 `try...catch` 块。
+    *   在 `catch` 块中，捕获的错误类型是 `unknown`。必须先检查其类型再处理。
+    *   示例:
+        ```typescript
+        try {
+          // ... some operation
+        } catch (error) {
+          console.error('An unexpected error occurred:', error);
+          if (error instanceof Error) {
+            vscode.window.showErrorMessage(error.message);
+          } else {
+            vscode.window.showErrorMessage('An unknown error occurred.');
+          }
+        }
+        ```
+
+### RULE6：代码质量和工具
+1.  **ESLint**:
+    *   所有代码在提交前必须通过 ESLint 检查。
+    *   运行 `npm run lint` 来手动触发检查。
+    *   强烈建议在IDE中安装 ESLint 插件，以便实时获得反馈。
+2.  **注释**:
+    *   为复杂的逻辑、算法或不直观的代码段添加清晰的注释。
+    *   对于公开的函数和方法，使用 JSDoc 风格的注释来描述其功能、参数和返回值。
+    *   示例:
+        ```typescript
+        /**
+         * A brief description of what the function does.
+         * @param param1 Description of the first parameter.
+         * @returns Description of the return value.
+         */
+        function myFunction(param1: string): boolean {
+          // ...
+        }
+        ```
