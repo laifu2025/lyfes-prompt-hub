@@ -219,13 +219,15 @@ body {
 
 /* Ensure danger icon buttons are also red */
 .btn-icon.delete-category-btn,
-.btn-icon.delete-backup-btn { /* Assuming a backup delete button might exist */
+.btn-icon.delete-backup-btn,
+.btn-icon.btn-delete { /* Assuming a backup delete button might exist */
     color: var(--vscode-errorForeground, #f44747);
     opacity: 0.8;
 }
 
 .btn-icon.delete-category-btn:hover,
-.btn-icon.delete-backup-btn:hover {
+.btn-icon.delete-backup-btn:hover,
+.btn-icon.btn-delete:hover {
     background-color: rgba(239, 83, 80, 0.15);
     opacity: 1;
 }
@@ -395,56 +397,64 @@ input[list]::-webkit-calendar-picker-indicator {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--spacing-unit) 0;
+    padding: var(--spacing-unit);
+    border-bottom: 1px solid var(--vscode-border);
 }
 
 /* --- Category Management --- */
 .category-manage-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     padding: var(--spacing-unit);
     border-bottom: 1px solid var(--vscode-border);
+    transition: background-color 0.1s ease-in-out;
+    gap: var(--spacing-unit);
 }
+
 .category-manage-item:hover {
     background-color: var(--vscode-list-hover-background);
 }
 
-.category-manage-actions {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
+.category-name-wrapper {
+    flex-grow: 1;
     display: flex;
-    gap: 4px;
-    opacity: 1;
-    transition: opacity 0.2s ease-in-out;
 }
 
-.category-manage-name {
+.category-name {
     flex-grow: 1;
-    padding: 6px 4px;
-    cursor: text;
+    padding: 4px 6px;
+    cursor: pointer;
     border-radius: var(--border-radius);
-    transition: background-color 0.2s ease-in-out;
+    line-height: 1.5;
 }
 
-.category-manage-item:hover .category-manage-name {
-    background-color: var(--vscode-list-hover-background);
+.category-name:hover {
+    background-color: rgba(128, 128, 128, 0.1);
 }
 
-.category-manage-input {
-    flex-grow: 1;
+.category-input {
+    width: 100%;
+    padding: 4px 6px;
     background-color: var(--vscode-input-background);
     border: 1px solid var(--vscode-focus-border);
+    border-radius: var(--border-radius);
     color: var(--vscode-foreground);
     font-family: var(--font-family);
-    font-size: 1em;
-    padding: 6px 4px;
-    border-radius: var(--border-radius);
+    line-height: 1.5;
+}
+
+.category-input:focus {
     outline: none;
-    margin: 0;
-    height: auto;
+}
+
+.category-manage-actions {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--spacing-unit) / 2);
+}
+
+.new-category-item {
+    background-color: rgba(var(--vscode-focus-border-rgb, 0, 122, 204), 0.1);
 }
 
 .add-category-form {
@@ -585,6 +595,9 @@ input[list]::-webkit-calendar-picker-indicator {
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 12px;
+}
+.settings-section-header h3 {
+    margin: 0;
 }
 .data-item {
     display: flex;

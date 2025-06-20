@@ -202,7 +202,7 @@ export class DataManager {
         if (appData.categories.includes(categoryName)) {
             throw new Error(`分类 "${categoryName}" 已存在。`);
         }
-        appData.categories.push(categoryName);
+        appData.categories.unshift(categoryName);
         await this.saveAppData(appData);
         return appData;
     }
