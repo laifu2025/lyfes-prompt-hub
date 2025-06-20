@@ -11,7 +11,7 @@ export function activate(context: vscode.ExtensionContext) {
     dataManager = new DataManager(context);
     
     // 创建 Prompt Hub Provider
-    const promptHubProvider = new PromptHubProvider(context.extensionUri, dataManager);
+    const promptHubProvider = new PromptHubProvider(context.extensionUri, context);
     
     // 注册 webview provider
     context.subscriptions.push(

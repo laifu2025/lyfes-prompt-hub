@@ -23,12 +23,9 @@ export const dom = {
         edit: document.getElementById('edit-view'),
         settings: document.getElementById('settings-view'),
         filter: document.getElementById('filter-view'),
-        category: document.getElementById('category-view'),
+        categoryManagement: document.getElementById('category-management-view'),
     },
-    categoryManagement: {
-        container: document.getElementById('category-list-container'),
-        addBtn: document.getElementById('add-new-category-btn'),
-    },
+
     promptListContainer: document.getElementById('prompt-list-container'),
     categoryTabsContainer: document.getElementById('category-tabs-container'),
     noResultsMessage: document.getElementById('no-results-message'),
@@ -41,6 +38,63 @@ export const dom = {
     tagPillsContainer: document.getElementById('tag-pills-container'),
     deletePromptBtn: document.getElementById('delete-prompt-btn'),
     editViewTitle: document.getElementById('edit-view-title'),
-    // Note: Some IDs from the old code were very specific and might be better generalized
-    // e.g. 'filter-reset-btn' is inside the filter view.
+
+    editViewElements: {
+        form: document.getElementById('prompt-form'),
+        idInput: document.getElementById('prompt-id'),
+        titleInput: document.getElementById('prompt-title'),
+        promptInput: document.getElementById('prompt-content'),
+        categorySelect: document.getElementById('prompt-category'),
+        categoryWrapper: document.querySelector('#edit-view .custom-select-wrapper'),
+        categoryDropdownMenu: document.getElementById('category-dropdown-menu'),
+        tagsInput: document.getElementById('tag-input-field'),
+        saveButton: document.querySelector('#prompt-form button[type="submit"]'),
+        backButton: document.querySelector('#edit-view .btn-back'),
+        cancelButton: document.getElementById('cancel-edit-btn'),
+        deleteButton: document.getElementById('delete-prompt-btn'),
+        viewTitle: document.getElementById('edit-view-title'),
+    },
+
+    mainViewElements: {
+        searchInput: document.getElementById('search-input'),
+        filterButton: document.getElementById('filter-btn'),
+        addPromptButton: document.getElementById('add-prompt-btn'),
+        manageCategoriesButton: document.getElementById('manage-categories-btn'),
+        settingsButton: document.getElementById('settings-btn'),
+        categoryTabsContainer: document.getElementById('category-tabs-container'),
+        promptListContainer: document.getElementById('prompt-list-container'),
+        noResultsMessage: document.getElementById('no-results-message'),
+    },
+
+    categoryViewElements: {
+        view: document.getElementById('category-management-view'),
+        addCategoryButton: document.getElementById('add-category-btn'),
+        backButton: document.querySelector('#category-management-view .btn-back'),
+        container: document.getElementById('category-management-list-container'),
+    },
+
+    filterViewElements: {
+        view: document.getElementById('filter-view'),
+        backButton: document.querySelector('#filter-view .btn-back'),
+        statusOptions: document.getElementById('status-options'),
+        tagFilterOptions: document.getElementById('tag-filter-options'),
+        resetButton: document.getElementById('filter-reset-btn'),
+        applyButton: document.getElementById('filter-apply-btn'),
+    },
+
+    settingsViewElements: {
+        view: document.getElementById('settings-view'),
+        backButton: document.querySelector('#settings-view .btn-back'),
+        importButton: document.getElementById('import-btn'),
+        exportButton: document.getElementById('export-btn'),
+        createBackupButton: document.getElementById('create-backup-btn'),
+        restoreBackupButton: document.getElementById('restore-backup-btn'),
+        cloudSyncStatus: document.getElementById('cloud-sync-status'),
+        setupCloudSyncButton: document.getElementById('setup-cloud-sync-btn'),
+        syncToCloudButton: document.getElementById('sync-to-cloud-btn'),
+        syncFromCloudButton: document.getElementById('sync-from-cloud-btn'),
+        storageModeStatus: document.getElementById('storage-mode-status'),
+        toggleWorkspaceModeButton: document.getElementById('toggle-workspace-mode-btn'),
+        showStorageInfoButton: document.getElementById('show-storage-info-btn'),
+    },
 };

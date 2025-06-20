@@ -411,9 +411,14 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 
 .category-manage-actions {
-    margin-left: auto;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
     gap: 4px;
+    opacity: 1;
+    transition: opacity 0.2s ease-in-out;
 }
 
 .category-manage-name {

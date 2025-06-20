@@ -2,13 +2,16 @@
   "name": "lyfes-prompt-hub",
   "displayName": "Lyfe's Prompt Hub",
   "description": "A personal prompt management center.",
-  "version": "0.6.7",
+  "version": "0.7.5",
   "publisher": "Lyfe",
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
     "Other"
+  ],
+  "files": [
+    "out"
   ],
   "activationEvents": [
     "onStartupFinished"
@@ -206,4 +209,4 @@
   },
   "author": "Lyfe",
   "license": "MIT"
-}
+} 

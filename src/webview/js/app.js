@@ -1,41 +1,80 @@
-import { state } from './state.js';
-import { initializeApiListener, postMessageWithResponse } from './api.js';
-import { initEventListeners } from './eventHandlers.js';
-import * as ui from './uiManager.js';
+import { state, dom } from './state.js';
+import * as api from './api.js';
+import { navigateTo, goBack, renderAll, showToast, renderSettingsStatus, renderPrompts } from './uiManager.js';
+import * as mainView from './views/mainView.js';
+import * as editView from './views/editView.js';
+import * as categoryView from './views/categoryView.js';
+import * as filterView from './views/filterView.js';
+import * as settingsView from './views/settingsView.js';
+// Import other views later
+// import SettingsView from './views/settingsView.js';
+// import FilterView from './views/filterView.js';
 
-/**
- * The main application entry point.
- */
-function main() {
-    // 1. Initialize the listener for messages from the extension backend.
-    // Pass in the functions it needs to call from other modules.
-    initializeApiListener(initialLoad, ui.renderAll, ui.renderSettingsStatus);
-
-    // 2. Initialize all our event listeners for user interaction.
-    initEventListeners();
-
-    // 3. Perform the initial data load from the extension.
-    initialLoad();
-}
-
-/**
- * Fetches all necessary data from the backend and triggers the initial render.
- */
 async function initialLoad() {
     try {
-        const response = await postMessageWithResponse('getAppData');
-        if (response.data) {
+        const response = await api.postMessageWithResponse('getAppData');
+        if (response && response.data) {
             state.appData = response.data;
             state.prompts = response.data.prompts || [];
-            ui.renderAll();
-        } else {
-            throw new Error("No data received from backend.");
+            renderAll();
+        }
+        const settings = await api.postMessageWithResponse('getSettings');
+        if (settings) {
+            renderSettingsStatus(settings);
         }
     } catch (error) {
         console.error("Error during initial load:", error);
-        ui.showToast(error.message || '获取数据失败', 'error');
+        showToast(error.message || '获取初始数据失败', 'error');
     }
 }
 
-// Start the application once the DOM is fully loaded.
-document.addEventListener('DOMContentLoaded', main);
+function init() {
+    // Setup communication
+    api.initializeApiListener();
+    
+    // API event handlers
+    api.on('appDataUpdated', (data) => {
+        state.appData = data;
+        state.prompts = data.prompts || [];
+        renderAll();
+        showToast('数据已自动刷新', 'info');
+    });
+
+    api.on('requestRefresh', () => {
+        initialLoad();
+        showToast('数据已刷新', 'success');
+    });
+
+    api.on('error', (errorMessage) => {
+        showToast(errorMessage, 'error');
+    });
+
+    // Initialize all view modules
+    mainView.init();
+    editView.init();
+    categoryView.init();
+    filterView.init();
+    settingsView.init();
+    
+    // Gobal event listeners
+    dom.views.main.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-back')) {
+            goBack();
+        }
+    });
+    
+    Object.values(dom.views).forEach(view => {
+        const backButton = view.querySelector('.btn-back');
+        if(backButton) {
+            backButton.addEventListener('click', goBack);
+        }
+    });
+
+    // Set initial view
+    navigateTo('main');
+    
+    // Initial data load
+    initialLoad();
+}
+
+window.addEventListener('load', init);

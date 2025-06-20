@@ -1,4 +1,5 @@
 import { state, dom } from './state.js';
+import * as categoryView from './views/categoryView.js';
 
 // --- Navigation ---
 
@@ -12,6 +13,11 @@ export function navigateTo(viewName) {
 
     Object.values(dom.views).forEach(v => v.classList.add('hidden'));
     targetView.classList.remove('hidden');
+
+    // Special case for views that need rendering upon navigation
+    if (cleanViewName === 'categoryManagement') {
+        categoryView.render();
+    }
 
     const viewId = `${cleanViewName}-view`;
     if (state.viewStack[state.viewStack.length - 1] !== viewId) {
@@ -42,17 +48,19 @@ export function renderAll() {
     renderPrompts();
     updateCategories();
     updateFilterView();
-    renderCategoryManagementList();
+    categoryView.render();
 }
 
 export function renderPrompts() {
     if (!state.prompts) return;
     let filtered = state.prompts.filter(p => {
+        if (!p) return false; // Guard against undefined/null prompts in the array
+
         const search = state.filter.searchTerm.toLowerCase();
         const titleMatch = p.title.toLowerCase().includes(search);
         const contentMatch = p.content.toLowerCase().includes(search);
 
-        const statusMatch = state.filter.status === 'all' || (p.enabled ? 'enabled' : 'disabled') === state.filter.status;
+        const statusMatch = state.filter.status === 'all' || (p.isActive ? 'enabled' : 'disabled') === state.filter.status;
         const categoryMatch = state.filter.category === 'all' || p.category === state.filter.category;
         
         const selectedTags = state.filter.selectedTags;
@@ -72,44 +80,15 @@ export function renderPrompts() {
         <div class="prompt-item" data-id="${p.id}">
             <div class="prompt-item-content">
                 <div class="prompt-item-title">${p.title}</div>
-                <div class="prompt-tags">${p.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>
+                <div class="prompt-tags">${(p.tags || []).map(tag => `<span class="tag">${tag}</span>`).join('')}</div>
             </div>
-            <label class="switch" title="${p.enabled ? '启用' : '禁用'}">
-                <input type="checkbox" ${p.enabled ? 'checked' : ''} data-id="${p.id}">
+            <label class="switch" title="${p.isActive ? '启用' : '禁用'}">
+                <input type="checkbox" ${p.isActive ? 'checked' : ''} data-id="${p.id}">
                 <span class="slider"></span>
             </label>
         </div>`).join('');
     dom.noResultsMessage.classList.toggle('hidden', filtered.length !== 0);
 }
-
-export function renderCategoryManagementList() {
-    const categories = state.appData?.categories || [];
-    dom.categoryManagement.container.innerHTML = ''; // Clear the list first
-    categories.filter(c => c !== '未分类').forEach(cat => {
-        const item = createCategoryItemElement(cat);
-        dom.categoryManagement.container.appendChild(item);
-    });
-}
-
-function createCategoryItemElement(categoryName) {
-    const item = document.createElement('div');
-    item.className = 'category-list-item';
-    item.dataset.categoryName = categoryName;
-
-    item.innerHTML = `
-        <span class="category-name">${categoryName}</span>
-        <div class="category-actions">
-            <button class="btn-icon btn-edit" title="重命名">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-            </button>
-            <button class="btn-icon btn-delete" title="删除">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-1.157.24-2.14.733-2.924 1.416C.507 7.74 1.454 11.233 3.69 13.47c2.236 2.236 5.73 3.184 7.965 1.615.783-.55 1.276-1.355 1.416-2.924h.443A2.75 2.75 0 0019 10.25v-1.5A2.75 2.75 0 0016.25 6h-.443c-.24-1.157-.733-2.14-1.416-2.924C12.26.507 8.767 1.454 6.53 3.69 4.295 5.925 3.346 9.42 4.915 11.655c.55.783 1.355 1.276 2.924 1.416v.443A2.75 2.75 0 0010.25 16h1.5A2.75 2.75 0 0014.5 13.25v-.443c1.157-.24 2.14-.733 2.924-1.416C19.493 9.26 18.546 5.767 16.31 3.53c-2.236-2.236-5.73-3.184-7.965-1.615-.783.55-1.276 1.355-1.416 2.924H6.5A1.25 1.25 0 015.25 6.5v-1.5A1.25 1.25 0 016.5 3.75h1.5A1.25 1.25 0 019.25 5v1.5A1.25 1.25 0 018 7.75h-1.5A1.25 1.25 0 015.25 6.5v-1.5A1.25 1.25 0 016.5 3.75h1.5A1.25 1.25 0 019.25 5v1.5A1.25 1.25 0 018 7.75h-1.5A1.25 1.25 0 015.25 6.5z" clip-rule="evenodd" /></svg>
-            </button>
-        </div>
-    `;
-    return item;
-}
-
 
 export function renderCategoryDropdown() {
     const categories = state.appData?.categories || [];
@@ -156,17 +135,31 @@ export function updateFilterView() {
 // --- Forms & UI State ---
 
 export function showEditForm(id, isCreate = false) {
-    const prompt = isCreate ? { id: null, title: '', content: '', category: '', tags: [] } : state.prompts.find(p => p.id == id);
-    if (!prompt) return;
+    const { editViewElements: elements } = dom;
+    const prompt = isCreate 
+        ? { id: null, title: '', content: '', category: '', tags: [] } 
+        : state.prompts.find(p => p.id == id);
+    
+    if (!prompt) {
+        console.error('Prompt not found for editing:', id);
+        showToast('找不到要编辑的Prompt', 'error');
+        return;
+    }
+
+    elements.form.reset();
     state.editingPromptId = prompt.id;
-    dom.promptForm.reset();
-    dom.promptTitleField.value = prompt.title;
-    dom.promptContentField.value = prompt.content;
-    dom.promptCategoryField.value = prompt.category;
-    state.currentTags = [...prompt.tags];
+    state.currentTags = [...(prompt.tags || [])];
+
+    elements.idInput.value = prompt.id || '';
+    elements.titleInput.value = prompt.title;
+    elements.promptInput.value = prompt.content; // Changed from prompt.prompt
+    elements.categorySelect.value = prompt.category;
+    
     renderTags();
-    dom.editViewTitle.textContent = isCreate ? '创建 Prompt' : '编辑 Prompt';
-    dom.deletePromptBtn.classList.toggle('hidden', isCreate);
+    renderCategoryDropdown();
+
+    elements.viewTitle.textContent = isCreate ? '创建 Prompt' : '编辑 Prompt';
+    elements.deleteButton.classList.toggle('hidden', isCreate);
     navigateTo('edit');
 }
 

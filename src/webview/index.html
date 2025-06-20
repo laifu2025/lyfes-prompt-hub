@@ -209,23 +209,22 @@
         </div>
 
         <!-- 分类管理视图 -->
-        <div id="category-view" class="view hidden">
+        <div id="category-management-view" class="view hidden">
              <header class="view-header">
                 <button class="btn-icon btn-back" title="返回上一页">
                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="currentColor" d="M12.78 15.78a.75.75 0 01-1.06 0L6.47 10.53a.75.75 0 010-1.06l5.25-5.25a.75.75 0 011.06 1.06L8.06 10l4.72 4.72a.75.75 0 010 1.06z"/></svg>
                 </button>
                 <h2 class="view-title">分类管理</h2>
-                <button class="btn-icon" id="add-new-category-btn" title="添加新分类">
+                <div class="header-actions">
+                    <button class="btn-icon" id="add-category-btn" title="添加新分类">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>
                 </button>
-            </header>
-            <div class="view-content">
-                <div id="category-list-container">
-                    <!-- 分类列表将由JS动态生成 -->
                 </div>
+            </header>
+            <div id="category-management-list-container" class="view-content">
+                <!-- 分类列表将由JS动态生成在这里 -->
             </div>
         </div>
-
     </div>
     <!-- 快捷操作 Modal -->
     <div id="help-modal" class="modal-overlay hidden">
@@ -259,5 +258,7 @@
             <div id="backup-list-container"></div>
         </div>
     </div>
+
+    <div id="toast-container"></div>
 </body>
 </html> 
