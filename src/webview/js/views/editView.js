@@ -2,6 +2,29 @@ import { dom, state } from '../state.js';
 import { goBack, showToast, renderTags, renderCategoryDropdown } from '../uiManager.js';
 import * as api from '../api.js';
 
+let allTagsCache = [];
+let refreshCallback = () => {};
+
+function renderAvailableTags() {
+    const container = dom.editViewElements.allTagsContainer;
+    if (!container) return;
+
+    const available = allTagsCache.filter(t => !state.currentTags.includes(t));
+    container.innerHTML = available.map(tag => `<span class="tag">${tag}</span>`).join('');
+    container.classList.toggle('hidden', available.length === 0);
+}
+
+function handleAvailableTagClick(e) {
+    if (e.target.classList.contains('tag')) {
+        const tag = e.target.textContent;
+        if (tag && !state.currentTags.includes(tag)) {
+            state.currentTags.push(tag);
+            renderTags();
+            renderAvailableTags();
+        }
+    }
+}
+
 function handleFormSubmit(event) {
     event.preventDefault();
     const elements = dom.editViewElements;
@@ -17,12 +40,12 @@ function handleFormSubmit(event) {
     if (promptId) {
         promptData.id = parseInt(promptId, 10);
     }
-    
+
     api.postMessageWithResponse('savePrompt', { prompt: promptData })
         .then(() => {
             showToast('保存成功!');
             goBack();
-            api.postMessageWithResponse('requestRefresh'); // Request data refresh
+            refreshCallback();
         })
         .catch(err => {
             showToast(`保存失败: ${err.message}`, 'error');
@@ -39,10 +62,12 @@ function handleDelete() {
             }
             return Promise.reject('取消删除');
         })
-        .then(() => {
-            showToast('删除成功!');
-            goBack();
-            api.postMessageWithResponse('requestRefresh');
+        .then((response) => {
+            if (response && response.success) {
+                showToast('删除成功!');
+                goBack();
+                refreshCallback();
+            }
         })
         .catch(err => {
             if (err !== '取消删除') {
@@ -57,7 +82,12 @@ function handleTagInput(e) {
         const tag = e.target.value.trim();
         if (tag && !state.currentTags.includes(tag)) {
             state.currentTags.push(tag);
+            if (!allTagsCache.includes(tag)) {
+                allTagsCache.push(tag);
+                allTagsCache.sort();
+            }
             renderTags();
+            renderAvailableTags();
         }
         e.target.value = '';
     }
@@ -68,34 +98,37 @@ function handleTagPillRemove(e) {
         const tagToRemove = e.target.dataset.tag;
         state.currentTags = state.currentTags.filter(tag => tag !== tagToRemove);
         renderTags();
+        renderAvailableTags();
     }
 }
 
 function handleCategoryDropdownInteraction(e) {
     const { categoryWrapper, categoryDropdownMenu, categorySelect } = dom.editViewElements;
 
-    // Case 1: Click is on a dropdown item
     if (e.target.classList.contains('dropdown-item')) {
         categorySelect.value = e.target.dataset.value;
         categoryDropdownMenu.classList.add('hidden');
-        return; // Done
+        return;
     }
 
-    // Case 2: Click is inside the wrapper (on the input field or arrow)
     if (categoryWrapper.contains(e.target)) {
-        // First, make sure the dropdown is populated
         renderCategoryDropdown();
-        // Then, toggle its visibility
         categoryDropdownMenu.classList.toggle('hidden');
     } 
-    // Case 3: Click is outside the wrapper
     else {
         categoryDropdownMenu.classList.add('hidden');
     }
 }
 
+export function render() {
+    renderAvailableTags();
+}
 
-export function init() {
+export function init(refreshFunc) {
+    if (refreshFunc) {
+        refreshCallback = refreshFunc;
+    }
+
     const { editViewElements: elements } = dom;
 
     elements.form.addEventListener('submit', handleFormSubmit);
@@ -103,7 +136,16 @@ export function init() {
     elements.cancelButton.addEventListener('click', goBack);
     elements.tagsInput.addEventListener('keydown', handleTagInput);
     
-    // These listeners handle the custom dropdown behavior.
     dom.tagPillsContainer.addEventListener('click', handleTagPillRemove);
+    elements.allTagsContainer.addEventListener('click', handleAvailableTagClick);
     document.addEventListener('click', handleCategoryDropdownInteraction);
-} 
+
+    api.postMessageWithResponse('getAllTags')
+        .then(tags => {
+            allTagsCache = (tags || []).sort();
+            renderAvailableTags();
+        })
+        .catch(err => {
+            showToast(`加载标签列表失败: ${err.message}`, 'error');
+        });
+}

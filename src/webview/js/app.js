@@ -1,6 +1,6 @@
 import { state, dom } from './state.js';
 import * as api from './api.js';
-import { navigateTo, goBack, renderAll, showToast, renderSettingsStatus, renderPrompts } from './uiManager.js';
+import { navigateTo, goBack, renderAll, showToast, renderSettingsStatus } from './uiManager.js';
 import * as mainView from './views/mainView.js';
 import * as editView from './views/editView.js';
 import * as categoryView from './views/categoryView.js';
@@ -10,17 +10,20 @@ import * as settingsView from './views/settingsView.js';
 // import SettingsView from './views/settingsView.js';
 // import FilterView from './views/filterView.js';
 
-async function initialLoad() {
+export async function initialLoad() {
     try {
-        const response = await api.postMessageWithResponse('getAppData');
-        if (response && response.data) {
-            state.appData = response.data;
-            state.prompts = response.data.prompts || [];
+        const appData = await api.postMessageWithResponse('getAppData');
+        if (appData) {
+            state.appData = appData;
+            state.prompts = appData.prompts || [];
             renderAll();
-        }
-        const settings = await api.postMessageWithResponse('getSettings');
-        if (settings) {
-            renderSettingsStatus(settings);
+            
+            if (appData.settings) {
+                renderSettingsStatus({
+                    storageMode: appData.settings.workspaceMode ? 'workspace' : 'global',
+                    cloudSync: { status: appData.settings.cloudSync ? '已启用' : '未配置' }
+                });
+            }
         }
     } catch (error) {
         console.error("Error during initial load:", error);
@@ -29,39 +32,28 @@ async function initialLoad() {
 }
 
 function init() {
-    // Setup communication
     api.initializeApiListener();
     
-    // API event handlers
-    api.on('appDataUpdated', (data) => {
-        state.appData = data;
-        state.prompts = data.prompts || [];
-        renderAll();
-        showToast('数据已自动刷新', 'info');
-    });
-
-    api.on('requestRefresh', () => {
-        initialLoad();
-        showToast('数据已刷新', 'success');
-    });
-
-    api.on('error', (errorMessage) => {
-        showToast(errorMessage, 'error');
-    });
-
-    // Initialize all view modules
-    mainView.init();
-    editView.init();
-    categoryView.init();
-    filterView.init();
-    settingsView.init();
-    
-    // Gobal event listeners
-    dom.views.main.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-back')) {
-            goBack();
+    // Listen for manual refresh events triggered from the backend
+    window.addEventListener('manualRefresh', (e) => {
+        const data = e.detail;
+        if (data) {
+            state.appData = data;
+            state.prompts = data.prompts || [];
+            renderAll();
+            showToast('数据已手动刷新', 'success');
         }
     });
+
+    window.addEventListener('backendError', (e) => {
+        showToast(e.detail, 'error');
+    });
+
+    mainView.init();
+    editView.init(initialLoad);
+    categoryView.init(initialLoad);
+    filterView.init();
+    settingsView.init(initialLoad);
     
     Object.values(dom.views).forEach(view => {
         const backButton = view.querySelector('.btn-back');
@@ -70,10 +62,8 @@ function init() {
         }
     });
 
-    // Set initial view
     navigateTo('main');
     
-    // Initial data load
     initialLoad();
 }
 

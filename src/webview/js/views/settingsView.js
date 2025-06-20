@@ -1,23 +1,56 @@
 import { dom } from '../state.js';
 import * as api from '../api.js';
-import { navigateTo } from '../uiManager.js';
+import { navigateTo, showToast } from '../uiManager.js';
+
+let refreshCallback = () => {};
+
+function handleImport() {
+    api.postMessageWithResponse('importData')
+        .then(() => {
+            showToast('数据导入成功！', 'success');
+            refreshCallback();
+        })
+        .catch(err => showToast(`导入失败: ${err.message}`, 'error'));
+}
+
+function handleExport() {
+    api.postMessageWithResponse('exportData')
+        .then(() => showToast('数据已导出', 'success'))
+        .catch(err => showToast(`导出失败: ${err.message}`, 'error'));
+}
+
+function handleCreateBackup() {
+    api.postMessageWithResponse('createBackup')
+        .then(result => showToast(`备份已创建: ${result.path}`, 'success'))
+        .catch(err => showToast(`备份失败: ${err.message}`, 'error'));
+}
+
+function handleRestoreBackup() {
+    api.postMessageWithResponse('restoreBackup')
+        .then(result => {
+            if (result.restored) {
+                showToast('备份恢复成功！', 'success');
+                refreshCallback();
+            }
+        })
+        .catch(err => showToast(`恢复失败: ${err.message}`, 'error'));
+}
+
+function handleToggleWorkspaceMode() {
+    api.postMessageWithResponse('toggleWorkspaceMode')
+        .then(() => {
+            showToast('存储模式已切换', 'success');
+            refreshCallback();
+        })
+        .catch(err => showToast(`切换失败: ${err.message}`, 'error'));
+}
 
 function setupDataManagementListeners() {
-    dom.settingsViewElements.importButton.addEventListener('click', () => {
-        api.postMessage({ command: 'importData' });
-    });
-
-    dom.settingsViewElements.exportButton.addEventListener('click', () => {
-        api.postMessage({ command: 'exportData' });
-    });
-
-    dom.settingsViewElements.createBackupButton.addEventListener('click', () => {
-        api.postMessage({ command: 'createBackup' });
-    });
-
-    dom.settingsViewElements.restoreBackupButton.addEventListener('click', () => {
-        api.postMessage({ command: 'restoreBackup' });
-    });
+    dom.settingsViewElements.importButton.addEventListener('click', handleImport);
+    dom.settingsViewElements.exportButton.addEventListener('click', handleExport);
+    dom.settingsViewElements.createBackupButton.addEventListener('click', handleCreateBackup);
+    dom.settingsViewElements.restoreBackupButton.addEventListener('click', handleRestoreBackup);
+    dom.settingsViewElements.toggleWorkspaceModeButton.addEventListener('click', handleToggleWorkspaceMode);
 }
 
 function setupCloudSyncListeners() {
@@ -35,15 +68,15 @@ function setupCloudSyncListeners() {
 }
 
 function setupStorageModeListeners() {
-    dom.settingsViewElements.toggleWorkspaceModeButton.addEventListener('click', () => {
-        api.postMessage({ command: 'toggleWorkspaceMode' });
-    });
-     dom.settingsViewElements.showStorageInfoButton.addEventListener('click', () => {
+    dom.settingsViewElements.showStorageInfoButton.addEventListener('click', () => {
         api.postMessage({ command: 'getStorageInfo' });
     });
 }
 
-export function init() {
+export function init(refreshFunc) {
+    if (refreshFunc) {
+        refreshCallback = refreshFunc;
+    }
     dom.mainViewElements.settingsButton.addEventListener('click', () => navigateTo('settings'));
     
     setupDataManagementListeners();

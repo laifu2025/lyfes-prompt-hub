@@ -20,12 +20,6 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
     ) {
         this._view = webviewView;
 
-        webviewView.onDidChangeVisibility(() => {
-            if (webviewView.visible) {
-                this.refresh();
-            }
-        });
-
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'out')]
@@ -54,10 +48,22 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 this._postMessage({ type: 'appDataResponse', requestId: message.requestId, success: true, data: appData });
                 break;
             }
+
+            case 'getPrompts': {
+                const prompts = await this._dataManager.getPrompts();
+                this._postMessage({ type: 'promptsResponse', requestId: message.requestId, success: true, data: prompts });
+                break;
+            }
+
+            case 'getAllTags': {
+                const tags = await this._dataManager.getAllTags();
+                this._postMessage({ type: 'allTagsResponse', requestId: message.requestId, success: true, data: tags });
+                break;
+            }
             
             case 'savePrompt': {
-                const updatedAppData = await this._dataManager.savePrompt(payload.prompt);
-                this._postMessage({ type: 'savePromptResponse', requestId: message.requestId, success: true, data: updatedAppData });
+                await this._dataManager.savePrompt(payload.prompt);
+                this._postMessage({ type: 'savePromptResponse', requestId: message.requestId, success: true });
                 this._showNotification('Prompt 已保存。');
                 break;
             }
@@ -65,14 +71,12 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
             case 'deletePrompt': {
                 await this._dataManager.deletePrompt(payload.id);
                 this._postMessage({ type: 'deletePromptResponse', requestId: message.requestId, success: true });
-                await this.refresh();
                 this._showNotification('Prompt 已删除。');
                 break;
             }
 
             case 'renameCategory': {
                 await this._dataManager.renameCategory(payload.oldName, payload.newName);
-                await this.refresh();
                 this._postMessage({ type: 'renameCategoryResponse', requestId: message.requestId, success: true });
                 this._showNotification(`分类已重命名为 "${payload.newName}"`);
                 break;
@@ -80,17 +84,15 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
 
             case 'deleteCategory': {
                 await this._dataManager.deleteCategory(payload.name);
-                        await this.refresh();
                 this._postMessage({ type: 'deleteCategoryResponse', requestId: message.requestId, success: true });
-                        this._showNotification('分类已删除。');
+                this._showNotification('分类已删除。');
                 break;
             }
             
             case 'addCategory': {
                 await this._dataManager.addCategory(payload.name);
-                await this.refresh();
                 this._postMessage({ type: 'addCategoryResponse', requestId: message.requestId, success: true });
-                    this._showNotification(`分类 "${payload.name}" 已成功添加。`);
+                this._showNotification(`分类 "${payload.name}" 已成功添加。`);
                 break;
             }
 
@@ -105,6 +107,14 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 this._postMessage({ type: 'confirmationResponse', requestId: message.requestId, success: true, confirmed });
                 break;
             }
+
+            case 'showInputBox': {
+                const value = await vscode.window.showInputBox(payload);
+                // If the user cancels the input box, `value` will be `undefined`.
+                // We send it back anyway, the webview should handle this case.
+                this._postMessage({ type: 'inputBoxResponse', requestId: message.requestId, success: true, value });
+                break;
+            }
         }
     }
 
@@ -117,7 +127,7 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
     public async refresh(): Promise<void> {
         if (this._view && this._view.visible) {
             const appData = await this._dataManager.getAppData();
-            this._postMessage({ type: 'appDataResponse', data: appData });
+            this._postMessage({ type: 'appDataResponse', data: appData, isRefresh: true });
         }
     }
 

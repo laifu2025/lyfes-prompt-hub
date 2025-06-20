@@ -7,7 +7,20 @@ function handleSearchInput(e) {
     renderPrompts();
 }
 
-function openFilterView() {
+async function openFilterView() {
+    try {
+        // Always fetch the latest prompts to ensure tags are up-to-date
+        const response = await api.postMessageWithResponse('getPrompts');
+        if (response && response.data) {
+            state.prompts = response.data;
+        } else {
+            console.warn('Could not refresh prompts for filter view.');
+        }
+    } catch (error) {
+        console.error('Error fetching prompts for filter view:', error);
+        // Don't block the UI, proceed with existing state data
+    }
+    
     // Clone the current filter state for editing, so changes aren't applied live
     state.stagedFilter = JSON.parse(JSON.stringify(state.filter));
     updateFilterView();

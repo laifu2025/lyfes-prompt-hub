@@ -1,5 +1,6 @@
 import { state, dom } from './state.js';
 import * as categoryView from './views/categoryView.js';
+import * as editView from './views/editView.js';
 
 // --- Navigation ---
 
@@ -52,9 +53,11 @@ export function renderAll() {
 }
 
 export function renderPrompts() {
-    if (!state.prompts) return;
+    if (!state.prompts) {
+        return;
+    }
     let filtered = state.prompts.filter(p => {
-        if (!p) return false; // Guard against undefined/null prompts in the array
+        if (!p) return false;
 
         const search = state.filter.searchTerm.toLowerCase();
         const titleMatch = p.title.toLowerCase().includes(search);
@@ -68,6 +71,7 @@ export function renderPrompts() {
 
         return (titleMatch || contentMatch) && statusMatch && categoryMatch && tagMatch;
     });
+
     filtered.sort((a, b) => {
         switch (state.filter.sortBy) {
             case 'oldest': return new Date(a.createdAt) - new Date(b.createdAt);
@@ -76,6 +80,7 @@ export function renderPrompts() {
             default: return new Date(b.createdAt) - new Date(a.createdAt);
         }
     });
+
     dom.promptListContainer.innerHTML = filtered.map(p => `
         <div class="prompt-item" data-id="${p.id}">
             <div class="prompt-item-content">
@@ -113,7 +118,7 @@ export function updateCategories() {
 }
 
 export function updateFilterView() {
-    if (!state.stagedFilter) return;
+    if (!state.stagedFilter || !state.prompts) return;
 
     // Update Status Buttons
     document.querySelectorAll('#status-options .filter-btn').forEach(btn => {
@@ -121,7 +126,10 @@ export function updateFilterView() {
     });
 
     // Render and Update Tag Buttons
-    const allTags = state.prompts.reduce((acc, p) => [...acc, ...p.tags], []);
+    const allTags = state.prompts.reduce((acc, p) => {
+        // Ensure tags is an array before spreading
+        return p && p.tags ? [...acc, ...p.tags] : acc;
+    }, []);
     const uniqueTags = ['all', ...new Set(allTags)];
     
     const tagContainer = document.getElementById('tag-filter-options');
@@ -157,6 +165,7 @@ export function showEditForm(id, isCreate = false) {
     
     renderTags();
     renderCategoryDropdown();
+    editView.render();
 
     elements.viewTitle.textContent = isCreate ? '创建 Prompt' : '编辑 Prompt';
     elements.deleteButton.classList.toggle('hidden', isCreate);
@@ -170,8 +179,15 @@ export function renderSettingsStatus(status) {
             element.className = `status-badge ${statusType}`;
         }
     };
-    updateBadge(document.getElementById('storage-mode-status'), status.storageMode, status.storageMode === 'workspace' ? 'success' : 'info');
-    updateBadge(document.getElementById('cloud-sync-status'), status.cloudSync.status, 'info'); // Simplified
+    if (!status) return;
+
+    const storageModeText = status.storageMode === 'workspace' ? '工作区' : '全局';
+    updateBadge(dom.settingsViewElements.storageModeStatus, storageModeText, status.storageMode === 'workspace' ? 'success' : 'info');
+    
+    if (status.cloudSync) {
+        const syncStatusText = status.cloudSync.status;
+        updateBadge(dom.settingsViewElements.cloudSyncStatus, syncStatusText, 'info');
+    }
 }
 
 

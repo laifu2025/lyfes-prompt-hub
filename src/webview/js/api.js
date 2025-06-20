@@ -1,30 +1,5 @@
 import { state } from './state.js';
 
-const eventListeners = new Map();
-
-/**
- * Register a listener for a specific event type from the backend.
- * @param {string} eventName The name of the event to listen for.
- * @param {function} callback The function to call when the event is triggered.
- */
-export function on(eventName, callback) {
-    if (!eventListeners.has(eventName)) {
-        eventListeners.set(eventName, []);
-    }
-    eventListeners.get(eventName).push(callback);
-}
-
-/**
- * Emits an event, calling all registered listeners for that event.
- * @param {string} eventName The name of the event to emit.
- * @param {any} data The data to pass to the listeners.
- */
-function emit(eventName, data) {
-    if (eventListeners.has(eventName)) {
-        eventListeners.get(eventName).forEach(callback => callback(data));
-    }
-}
-
 /**
  * Sends a message to the extension backend and returns a Promise that resolves with the response.
  * @param {string} type The message type/command.
@@ -41,7 +16,6 @@ export function postMessageWithResponse(type, payload = {}) {
 
 /**
  * Initializes the main message listener to handle responses from the extension.
- * This is a critical part of the API layer.
  */
 export function initializeApiListener() {
     window.addEventListener('message', event => {
@@ -51,32 +25,22 @@ export function initializeApiListener() {
         if (state.pendingRequests.has(requestId)) {
             const { resolve, reject, type: requestType } = state.pendingRequests.get(requestId);
             state.pendingRequests.delete(requestId);
-            if (response.success === false) {
-                console.error(`Request ${requestType} (${requestId}) failed:`, response.error);
-                reject(new Error(response.error || `操作 '${requestType}' 失败`));
+            if (response.success === false || message.success === false) { // Check both for robustness
+                const errorMsg = response.error || response.message || `操作 '${requestType}' 失败`;
+                console.error(`Request ${requestType} (${requestId}) failed:`, errorMsg);
+                reject(new Error(errorMsg));
             } else {
-                // If the response contains data (like after a save), emit an update event
-                if (response.data) {
-                    emit('appDataUpdated', response.data);
-                }
-                resolve(response);
+                resolve(response.data !== undefined ? response.data : response);
             }
         } else {
-            // Handle messages initiated by the backend by emitting events
-            switch (type) {
-                case 'error':
-                    console.error('Received an error from the backend:', response.message);
-                    emit('error', response.message);
-                    break;
-                case 'requestRefresh':
-                    emit('requestRefresh');
-                    break;
-                case 'appDataResponse': // E.g., for manual refresh or push updates
-                    emit('appDataUpdated', response.data);
-                    break;
-                case 'systemStatusUpdated':
-                    emit('systemStatusUpdated', response.data);
-                    break;
+             // Messages initiated by the backend (e.g., manual refresh from VS Code command)
+            if (type === 'appDataResponse' && message.isRefresh) {
+                // This is a special case for manual refresh.
+                // We'll dispatch a custom event that the app can listen to.
+                window.dispatchEvent(new CustomEvent('manualRefresh', { detail: message.data }));
+            } else if (type === 'error') {
+                 console.error('Received an error from the backend:', message.message);
+                 window.dispatchEvent(new CustomEvent('backendError', { detail: message.message }));
             }
         }
     });

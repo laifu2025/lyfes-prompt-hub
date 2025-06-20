@@ -48,6 +48,7 @@ export const dom = {
         categoryWrapper: document.querySelector('#edit-view .custom-select-wrapper'),
         categoryDropdownMenu: document.getElementById('category-dropdown-menu'),
         tagsInput: document.getElementById('tag-input-field'),
+        allTagsContainer: document.getElementById('all-tags-container'),
         saveButton: document.querySelector('#prompt-form button[type="submit"]'),
         backButton: document.querySelector('#edit-view .btn-back'),
         cancelButton: document.getElementById('cancel-edit-btn'),

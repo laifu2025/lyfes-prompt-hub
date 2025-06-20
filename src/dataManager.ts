@@ -67,28 +67,53 @@ export class DataManager {
             }
         };
 
-        let savedData: AppData | undefined;
-        const globalData = this.context.globalState.get<AppData>(DataManager.STORAGE_KEYS.APP_DATA);
-        const workspaceData = this.context.workspaceState.get<AppData>(DataManager.STORAGE_KEYS.WORKSPACE_DATA);
+        try {
+            let savedData: AppData | undefined;
+            const globalData = this.context.globalState.get<AppData>(DataManager.STORAGE_KEYS.APP_DATA);
+            const workspaceData = this.context.workspaceState.get<AppData>(DataManager.STORAGE_KEYS.WORKSPACE_DATA);
 
-        if (workspaceData?.settings.workspaceMode) {
-            savedData = workspaceData;
-        } else if (globalData) {
-            savedData = globalData;
-        }
-        
-        if (savedData) {
-            savedData.categories = savedData.categories && savedData.categories.length > 0 ? savedData.categories : defaultData.categories;
-            const mergedData = {
-                ...defaultData,
-                ...savedData,
-                settings: { ...defaultData.settings, ...savedData.settings },
-                metadata: { ...defaultData.metadata, ...savedData.metadata, totalPrompts: savedData.prompts?.length || 0 }
-            };
-            return mergedData;
-        }
+            if (workspaceData?.settings.workspaceMode) {
+                savedData = workspaceData;
+            } else if (globalData) {
+                savedData = globalData;
+            }
+            
+            if (savedData) {
+                savedData.categories = savedData.categories && savedData.categories.length > 0 ? savedData.categories : defaultData.categories;
+                const mergedData = {
+                    ...defaultData,
+                    ...savedData,
+                    settings: { ...defaultData.settings, ...savedData.settings },
+                    metadata: { ...defaultData.metadata, ...savedData.metadata, totalPrompts: savedData.prompts?.length || 0 }
+                };
+                return mergedData;
+            }
 
-        return defaultData;
+            return defaultData;
+        } catch (error) {
+            console.error('[DataManager] CRITICAL: Error while getting AppData. Returning default data.', error);
+            return defaultData;
+        }
+    }
+
+    public async getPrompts(): Promise<Prompt[]> {
+        const appData = await this.getAppData();
+        return appData.prompts || [];
+    }
+
+    public async getAllTags(): Promise<string[]> {
+        const appData = await this.getAppData();
+        const allTags = new Set<string>();
+        if (appData.prompts) {
+            for (const prompt of appData.prompts) {
+                if (prompt.tags) {
+                    for (const tag of prompt.tags) {
+                        allTags.add(tag);
+                    }
+                }
+            }
+        }
+        return Array.from(allTags);
     }
 
     public async saveAppData(data: AppData): Promise<void> {
@@ -182,10 +207,10 @@ export class DataManager {
         return appData;
     }
 
-    public async renameCategory(oldName: string, newName: string): Promise<void> {
+    public async renameCategory(oldName: string, newName: string): Promise<AppData> {
         const appData = await this.getAppData();
         if (!newName || newName.trim() === '') throw new Error('分类名称不能为空。');
-        if (oldName === newName) return;
+        if (oldName === newName) return appData;
         if (appData.categories.includes(newName)) throw new Error(`分类 "${newName}" 已存在。`);
         
         const categoryIndex = appData.categories.indexOf(oldName);
@@ -194,9 +219,10 @@ export class DataManager {
         appData.categories[categoryIndex] = newName;
         appData.prompts.forEach(p => { if (p.category === oldName) p.category = newName; });
         await this.saveAppData(appData);
+        return appData;
     }
 
-    public async deleteCategory(categoryName: string): Promise<void> {
+    public async deleteCategory(categoryName: string): Promise<AppData> {
         if (categoryName === '未分类') {
             throw new Error('不能删除 "未分类" 这个默认分类。');
         }
@@ -214,6 +240,7 @@ export class DataManager {
         appData.categories = appData.categories.filter(c => c !== categoryName);
         
         await this.saveAppData(appData);
+        return appData;
     }
 
     public async setPromptActive(promptId: string | number, isActive: boolean): Promise<void> {
