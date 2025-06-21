@@ -2,7 +2,7 @@
   "name": "lyfes-prompt-hub",
   "displayName": "Lyfe's Prompt Hub",
   "description": "A personal prompt management tool designed to run within VS Code, offering fast, local, and private storage for your prompts.",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "publisher": "Lyfe",
   "engines": {
     "vscode": "^1.80.0"
