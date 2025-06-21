@@ -100,6 +100,10 @@ export const dom = {
         cloudSyncConfigContainer: document.getElementById('cloud-sync-config-container'),
         syncProviderSelect: document.getElementById('sync-provider-select'),
         
+        // New Summary/Form Containers
+        syncSummaryView: document.getElementById('sync-summary-view'),
+        syncSettingsForm: document.getElementById('sync-settings-form'),
+
         githubConfig: {
             container: document.getElementById('github-config'),
             token: document.getElementById('github-token'),
@@ -129,6 +133,7 @@ export const dom = {
         },
 
         saveSyncSettingsButton: document.getElementById('save-sync-settings-btn'),
+        editSyncSettingsButton: document.getElementById('edit-sync-settings-btn'),
         syncToCloudButton: document.getElementById('sync-to-cloud-btn'),
         syncFromCloudButton: document.getElementById('sync-from-cloud-btn'),
         

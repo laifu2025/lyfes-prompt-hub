@@ -86,6 +86,9 @@ function handleSyncToggle(event) {
     const isEnabled = event.target.checked;
     elements.cloudSyncConfigContainer.classList.toggle('hidden', !isEnabled);
 
+    // Hide sync actions when toggling off
+    document.getElementById('sync-actions-container').classList.add('hidden');
+
     if (!isEnabled) {
         // If user disables sync, call backend to clear settings
         api.postMessageWithResponse('webview:disableCloudSync')
@@ -95,6 +98,77 @@ function handleSyncToggle(event) {
                 showProviderConfig('disabled');
             })
             .catch(err => showToast(`禁用失败: ${err.message}`, 'error'));
+    }
+}
+
+function renderSyncSummary(settings) {
+    const { settingsViewElements: elements } = dom;
+    const summaryView = elements.syncSummaryView;
+    if (!summaryView) return;
+
+    const provider = settings.syncProvider;
+    let mainText = '';
+    let secondaryText = '';
+
+    switch (provider) {
+        case 'github':
+            mainText = `已连接到 <strong>GitHub Gist</strong>`;
+            secondaryText = `(ID: ${settings.gistId})`;
+            break;
+        case 'gitee':
+            mainText = `已连接到 <strong>Gitee Gist</strong>`;
+            secondaryText = `(ID: ${settings.gistId})`;
+            break;
+        case 'gitlab':
+            const gitlabInstance = settings.gitlabUrl === 'https://gitlab.com' ? 'GitLab.com' : settings.gitlabUrl;
+            mainText = `已连接到 <strong>${gitlabInstance}</strong>`;
+            secondaryText = `(Snippet: ${settings.gistId})`;
+            break;
+        case 'webdav':
+            mainText = `已连接到 <strong>WebDAV</strong>`;
+            secondaryText = `(${settings.webdavUsername}@${settings.webdavUrl})`;
+            break;
+        case 'custom':
+            mainText = `已连接到自定义 API`;
+            secondaryText = `(URL: <strong>${settings.customApiUrl}</strong>)`;
+            break;
+        default:
+            mainText = '云同步配置无效';
+    }
+
+    summaryView.innerHTML = `
+        <div class="summary-text-container">
+            <span class="summary-text-main">${mainText}</span>
+            <span class="summary-text-secondary">${secondaryText}</span>
+        </div>
+        <div class="summary-actions">
+            <span class="status-indicator success"></span>
+            <button id="edit-sync-settings-btn" class="btn btn-secondary">修改</button>
+        </div>
+    `;
+    
+    // Re-attach listener for the newly created button
+    summaryView.querySelector('#edit-sync-settings-btn').addEventListener('click', () => {
+        const currentProvider = dom.settingsViewElements.syncProviderSelect.value;
+        setSyncConfigLockedState(false, {}, currentProvider); // Pass empty settings object
+        showToast('设置已解锁，您可以进行修改。', 'info');
+    });
+}
+
+function setSyncConfigLockedState(isLocked, settings, provider) {
+    const { settingsViewElements: elements } = dom;
+
+    elements.syncSettingsForm.classList.toggle('hidden', isLocked);
+    elements.syncSummaryView.classList.toggle('hidden', !isLocked);
+    
+    // Main select should also be locked
+    elements.syncProviderSelect.disabled = isLocked;
+
+    if (isLocked) {
+        renderSyncSummary(settings);
+        document.getElementById('sync-actions-container').classList.remove('hidden');
+    } else {
+        document.getElementById('sync-actions-container').classList.add('hidden');
     }
 }
 
@@ -134,21 +208,42 @@ function handleSaveSyncSettings() {
             break;
     }
     
+    const saveButton = elements.saveSyncSettingsButton;
+    const originalButtonHtml = saveButton.innerHTML;
+    saveButton.disabled = true;
+    saveButton.innerHTML = `<span class="spinner"></span>正在验证中...`;
+    let isSuccess = false;
+    
     api.postMessageWithResponse('webview:saveCloudSyncSettings', settings)
         .then(result => {
             if (result.success) {
+                isSuccess = true;
                 showToast('云同步设置已保存并验证成功!', 'success');
-                // Clear password/token fields after successful save for security
-                Object.values(elements).forEach(el => {
-                    if (el && el.token) el.token.value = '';
-                    if (el && el.password) el.password.value = '';
-                    if (el && el.apiKey) el.apiKey.value = '';
+                // The full settings object is in result.data
+                setSyncConfigLockedState(true, result.data, provider);
+
+                // Show and highlight the sync actions
+                const syncActionsContainer = document.getElementById('sync-actions-container');
+                syncActionsContainer.classList.remove('hidden');
+                
+                const syncButtons = syncActionsContainer.querySelectorAll('.btn');
+                syncButtons.forEach(btn => {
+                    btn.classList.add('highlight-animation');
+                    // Remove animation class after it finishes
+                    setTimeout(() => btn.classList.remove('highlight-animation'), 2000);
                 });
+
             } else {
                 showToast(`设置失败: ${result.error}`, 'error');
             }
         })
-        .catch(err => showToast(`保存失败: ${err.message}`, 'error'));
+        .catch(err => showToast(`保存失败: ${err.message}`, 'error'))
+        .finally(() => {
+            if (!isSuccess) {
+                saveButton.disabled = false;
+                saveButton.innerHTML = originalButtonHtml;
+            }
+        });
 }
 
 function handleSyncToCloud() {
@@ -175,8 +270,9 @@ export function updateCloudSyncView(settings) {
     elements.cloudSyncConfigContainer.classList.toggle('hidden', !isEnabled);
     
     if (isEnabled) {
-        elements.syncProviderSelect.value = settings.syncProvider || 'disabled';
-        showProviderConfig(settings.syncProvider);
+        const provider = settings.syncProvider || 'disabled';
+        elements.syncProviderSelect.value = provider;
+        showProviderConfig(provider);
 
         // Populate non-sensitive fields
         if (settings.syncProvider === 'github') {
@@ -195,6 +291,13 @@ export function updateCloudSyncView(settings) {
         }
         if (settings.syncProvider === 'custom') {
             elements.customConfig.url.value = settings.customApiUrl || '';
+        }
+        
+        // Lock the UI if the settings are already validated
+        if (settings.isValidated) {
+            setSyncConfigLockedState(true, settings, provider);
+        } else {
+            setSyncConfigLockedState(false, settings, provider);
         }
     }
 }
@@ -216,6 +319,11 @@ export function init(refreshFunc) {
     elements.cloudSyncEnabledToggle.addEventListener('change', handleSyncToggle);
     elements.syncProviderSelect.addEventListener('change', handleProviderChange);
     elements.saveSyncSettingsButton.addEventListener('click', handleSaveSyncSettings);
+    elements.editSyncSettingsButton.addEventListener('click', () => {
+        const provider = dom.settingsViewElements.syncProviderSelect.value;
+        setSyncConfigLockedState(false, {}, provider);
+        showToast('设置已解锁，您可以进行修改。', 'info');
+    });
 
     elements.toggleWorkspaceModeButton.addEventListener('click', handleToggleWorkspaceMode);
     elements.showStorageInfoButton.addEventListener('click', () => api.postMessageWithResponse('showStorageInfo'));

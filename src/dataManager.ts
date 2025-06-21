@@ -35,6 +35,7 @@ export interface AppData {
         cloudSync: boolean;
         syncProvider: 'github' | 'gitee' | 'gitlab' | 'webdav' | 'custom' | null;
         workspaceMode: boolean;
+        isValidated?: boolean;
         gistId?: string; 
         gitlabUrl?: string;
         webdavUrl?: string;
@@ -471,6 +472,7 @@ export class DataManager {
         await this._clearAllSecrets();
 
         appData.settings.syncProvider = provider;
+        appData.settings.isValidated = false;
         appData.settings.gistId = undefined;
         appData.settings.gitlabUrl = undefined;
         appData.settings.webdavUrl = undefined;
@@ -486,9 +488,9 @@ export class DataManager {
                     appData.settings.gistId = await this._validateAndStoreGitee(token, gistId);
                     break;
                 case 'gitlab':
-                    if (!gitlabUrl) throw new SyncError('GitLab URL 不能为空。', 'GITLAB_URL_MISSING');
-                    appData.settings.gistId = await this._validateAndStoreGitLab(gitlabUrl, token, gistId);
-                    appData.settings.gitlabUrl = gitlabUrl;
+                    const finalGitlabUrl = gitlabUrl || 'https://gitlab.com';
+                    appData.settings.gistId = await this._validateAndStoreGitLab(finalGitlabUrl, token, gistId);
+                    appData.settings.gitlabUrl = finalGitlabUrl;
                     break;
                 case 'webdav':
                     if (!webdavUrl || !webdavUsername) throw new SyncError('WebDAV URL 和用户名不能为空。', 'WEBDAV_CONFIG_MISSING');
@@ -505,6 +507,7 @@ export class DataManager {
                     throw new SyncError(`未知的云服务提供商: ${provider}`, 'UNKNOWN_PROVIDER');
             }
             appData.settings.cloudSync = true;
+            appData.settings.isValidated = true;
         } catch (error) {
             // Passthrough SyncError, wrap others
             if (error instanceof SyncError) {
@@ -837,29 +840,29 @@ export class DataManager {
 
     public async disableCloudSync(): Promise<AppData | void> {
         const appData = await this.getAppData();
-        if (!appData.settings.cloudSync) {
-            vscode.window.showInformationMessage('云同步已经禁用。');
-            return;
-        }
-        const choice = await vscode.window.showWarningMessage(
-            '你确定要禁用云同步吗？这将会清除本地存储的所有相关密钥和设置。',
+        if (!appData.settings.cloudSync) { return; }
+
+        const confirmation = await vscode.window.showWarningMessage(
+            '您确定要禁用云同步吗？这将清除您本地存储的所有同步设置（Token、密码等）。',
             { modal: true },
-            '确认禁用'
+            '确定'
         );
 
-        if (choice === '确认禁用') {
-            await this._clearAllSecrets();
-            appData.settings.cloudSync = false;
-            appData.settings.syncProvider = null;
-            appData.settings.gistId = undefined;
-            appData.settings.gitlabUrl = undefined;
-            appData.settings.webdavUrl = undefined;
-            appData.settings.webdavUsername = undefined;
-            appData.settings.customApiUrl = undefined;
-            await this.saveAppData(appData);
-            vscode.window.showInformationMessage('云同步已禁用。');
-            return appData;
-        }
+        if (confirmation !== '确定') { return; }
+        
+        appData.settings.cloudSync = false;
+        appData.settings.syncProvider = null;
+        appData.settings.gistId = undefined;
+        appData.settings.gitlabUrl = undefined;
+        appData.settings.webdavUrl = undefined;
+        appData.settings.webdavUsername = undefined;
+        appData.settings.customApiUrl = undefined;
+        appData.settings.isValidated = false;
+
+        await this._clearAllSecrets();
+        await this.saveAppData(appData);
+
+        return appData;
     }
 
     public async syncToCloud(): Promise<void> {

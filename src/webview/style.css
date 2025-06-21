@@ -365,10 +365,13 @@ input:checked + .slider:before {
 
 .form-actions {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: var(--spacing-unit);
-    margin-top: calc(var(--spacing-unit) * 3);
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.form-submit-area {
+    margin-bottom: 0;
 }
 
 /* We hide the default ugly arrow from the datalist input */
@@ -1076,4 +1079,139 @@ input[list]::-webkit-calendar-picker-indicator {
     border: none;
     border-top: 1px solid var(--vscode-border);
     margin: calc(var(--spacing-unit) * 2) 0;
+}
+
+.help-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-foreground);
+    border: 1px solid var(--vscode-input-border);
+    font-size: 12px;
+    font-weight: bold;
+    cursor: help;
+    margin-left: 8px;
+    user-select: none;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.help-icon:hover {
+    background-color: var(--vscode-button-hoverBackground);
+    color: var(--vscode-button-foreground);
+}
+
+#tooltip {
+    position: fixed;
+    z-index: 1000;
+    padding: 10px 15px;
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    max-width: 350px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--vscode-foreground);
+    pointer-events: none; /* Allows mouse events to pass through */
+    transition: opacity 0.2s;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Spinner animation */
+@keyframes spinner-rotation {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    animation: spinner-rotation 0.75s linear infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+}
+
+/* Highlight animation for sync buttons */
+@keyframes highlight-fade {
+    0% {
+        box-shadow: 0 0 8px 3px var(--vscode-focusBorder);
+    }
+    100% {
+        box-shadow: 0 0 8px 3px transparent;
+    }
+}
+
+.highlight-animation {
+    animation: highlight-fade 2s ease-out forwards;
+}
+
+#toast-container {
+    position: fixed;
+    bottom: 20px;
+}
+
+#sync-summary-view {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px; /* Consistent with other cards */
+}
+
+#sync-summary-view .summary-text-container {
+    display: flex;
+    flex-direction: column;
+}
+
+#sync-summary-view .summary-text-main {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--vscode-foreground);
+}
+
+#sync-summary-view .summary-text-secondary {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+#sync-summary-view .summary-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.status-indicator.success {
+    background-color: var(--vscode-testing-iconPassed); /* A nice green color from VS Code's theme */
+}
+
+#sync-summary-view .summary-text {
+    font-size: 13px;
+    color: var(--vscode-descriptionForeground);
+}
+
+#sync-summary-view .summary-text strong {
+    color: var(--vscode-foreground);
 } 
