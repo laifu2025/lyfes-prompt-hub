@@ -22,9 +22,13 @@ export interface AppData {
         autoBackup: boolean;
         backupInterval: number; // minutes
         cloudSync: boolean;
-        syncProvider: 'github' | 'gitee' | 'custom' | null;
+        syncProvider: 'github' | 'gitee' | 'gitlab' | 'webdav' | 'custom' | null;
         workspaceMode: boolean;
         gistId?: string; 
+        gitlabUrl?: string;
+        webdavUrl?: string;
+        webdavUsername?: string;
+        customApiUrl?: string;
     };
     metadata: {
         version: string;
@@ -46,6 +50,17 @@ interface GistGetResponse {
         [filename: string]: GistFile;
     };
 }
+
+// GitLab interfaces
+interface GitLabSnippetResponse {
+    id: string;
+    raw_url: string;
+}
+
+// Gitee interfaces
+interface GiteeGistResponse {
+    id: string;
+}
 // #endregion
 
 export class DataManager {
@@ -57,7 +72,11 @@ export class DataManager {
         APP_DATA: 'promptHub.appData',
         WORKSPACE_DATA: 'promptHub.workspaceData',
         BACKUP_HISTORY: 'promptHub.backupHistory',
-        GITHUB_TOKEN: 'promptHub.githubToken'
+        GITHUB_TOKEN: 'promptHub.githubToken',
+        GITEE_TOKEN: 'promptHub.giteeToken',
+        GITLAB_TOKEN: 'promptHub.gitlabToken',
+        WEBDAV_PASSWORD: 'promptHub.webdavPassword',
+        CUSTOM_API_KEY: 'promptHub.customApiKey'
     };
 
     constructor(context: vscode.ExtensionContext) {
@@ -416,187 +435,507 @@ export class DataManager {
 
     // #region Cloud Sync
     public async setupCloudSync(): Promise<AppData | void> {
-        const choice = await vscode.window.showQuickPick([
-            { label: 'GitHub Gist', description: '通过 GitHub Gist 同步' },
-            { label: '禁用云同步', description: '关闭云同步功能' }
-        ], {
-            placeHolder: '请选择云同步提供商'
-        });
+        const appData = await this.getAppData();
+        const selection = await vscode.window.showQuickPick(
+            [
+                { label: 'GitHub Gist', description: '通过GitHub Gist同步' },
+                { label: 'Gitee Gist', description: '通过Gitee Gist同步' },
+                { label: 'GitLab Snippets', description: '通过GitLab Snippets同步' },
+                { label: 'WebDAV', description: '通过WebDAV服务器同步' },
+                { label: 'Custom API', description: '通过自定义API端点同步' },
+                { label: 'Disable Cloud Sync', description: '禁用云同步' }
+            ],
+            { placeHolder: '请选择一个云同步提供商' }
+        );
 
-        if (!choice) return;
+        if (!selection) { return; }
 
-        switch (choice.label) {
+        switch (selection.label) {
             case 'GitHub Gist':
-                return await this.setupGitHubSync();
-            case '禁用云同步':
-                return await this.disableCloudSync();
+                return this.setupGitHubSync();
+            case 'Gitee Gist':
+                return this.setupGiteeSync();
+            case 'GitLab Snippets':
+                return this.setupGitLabSync();
+            case 'WebDAV':
+                return this.setupWebDAVSync();
+            case 'Custom API':
+                return this.setupCustomApiSync();
+            case 'Disable Cloud Sync':
+                return this.disableCloudSync();
         }
     }
 
     private async setupGitHubSync(): Promise<AppData | void> {
-        const token = await vscode.window.showInputBox({
-            prompt: '请输入您的 GitHub Personal Access Token (需要 gist 权限)',
-            password: true,
-            ignoreFocusOut: true,
-            placeHolder: 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-        });
-
-        if (!token) {
-            vscode.window.showWarningMessage('未提供Token，GitHub同步设置已取消。');
-            return;
-        }
+        const token = await vscode.window.showInputBox({ prompt: '输入你的GitHub Personal Access Token (需要gist权限)', password: true, ignoreFocusOut: true });
+        if (!token) { return; }
 
         try {
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: '正在验证GitHub Token...',
-                cancellable: false
-            }, async () => {
+                title: '正在验证 GitHub Token...',
+                cancellable: true
+            }, async (_, cancellationToken) => {
+                const controller = new AbortController();
+                cancellationToken.onCancellationRequested(() => controller.abort());
+
                 const response = await axios.get('https://api.github.com/user', {
-                    headers: { 'Authorization': `token ${token}` }
-                });
-    
+                    headers: { 'Authorization': `token ${token}` },
+                    signal: controller.signal
+                } as any);
+
                 const scopes = response.headers['x-oauth-scopes'] as string;
                 if (!scopes || !scopes.split(', ').includes('gist')) {
                     throw new Error('Token无效或缺少 "gist" 权限。');
                 }
             });
-        } catch (error) {
-            const message = error instanceof Error ? error.message : '请检查网络连接或Token。';
-            vscode.window.showErrorMessage(`Token验证失败: ${message}`);
+        } catch (error: any) {
+            let message = '请检查网络连接或Token。';
+            if (error.response) {
+                if (error.response.status >= 500) {
+                    message = `GitHub 服务器返回了错误 (状态码: ${error.response.status})。这可能是临时性问题，请稍后再试。您也可以检查 GitHub Status 页面。`;
+                } else if (error.response.data?.message) {
+                    message = error.response.data.message;
+                }
+            } else if (error.message) {
+                message = error.message;
+            }
+            vscode.window.showErrorMessage(`GitHub Token 验证失败: ${message}`);
+            return;
+        }
+        
+        await this.context.secrets.store(DataManager.STORAGE_KEYS.GITHUB_TOKEN, token);
+
+        const gistId = await vscode.window.showInputBox({ prompt: '（可选）输入现有Gist ID进行关联' });
+
+        const appData = await this.getAppData();
+        appData.settings.cloudSync = true;
+        appData.settings.syncProvider = 'github';
+        appData.settings.gistId = gistId || undefined;
+        await this.saveAppData(appData);
+
+        vscode.window.showInformationMessage('GitHub Gist 同步已成功设置。');
+        return appData;
+    }
+
+    private async setupGiteeSync(): Promise<AppData | void> {
+        const token = await vscode.window.showInputBox({ prompt: '输入你的Gitee Private Token (需要gists权限)', password: true, ignoreFocusOut: true });
+        if (!token) return;
+
+        try {
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: '正在验证 Gitee Token...',
+                cancellable: true
+            }, async (_, cancellationToken) => {
+                const controller = new AbortController();
+                cancellationToken.onCancellationRequested(() => controller.abort());
+
+                // We won't check scopes for Gitee anymore, as the API doesn't seem to return them reliably.
+                // We will trust the user to have set the correct permissions.
+                await axios.get('https://gitee.com/api/v5/user', {
+                    params: { access_token: token },
+                    signal: controller.signal
+                } as any);
+
+            });
+        } catch (error: any) {
+            let message = '请检查网络连接或Token。';
+            if (error.response) {
+                if (error.response.status >= 500) {
+                    message = `Gitee 服务器返回了错误 (状态码: ${error.response.status})。这可能是临时性问题，请稍后再试。`;
+                } else if (error.response.data?.message) {
+                    message = `[${error.response.status}] ${error.response.data.message}`;
+                }
+            } else if (error.message) {
+                message = error.message;
+            }
+            vscode.window.showErrorMessage(`Gitee Token 验证失败: ${message}`);
             return;
         }
 
-        const gistId = await vscode.window.showInputBox({
-            prompt: '（可选）请输入一个已有的 Gist ID 用于同步',
-            ignoreFocusOut: true,
-            placeHolder: '如果留空，将在首次同步时自动创建新的 Gist'
-        });
+        const gistId = await vscode.window.showInputBox({ prompt: '（可选）输入现有Gist ID进行关联' });
+        await this.context.secrets.store(DataManager.STORAGE_KEYS.GITEE_TOKEN, token);
+
+        const appData = await this.getAppData();
+        appData.settings.cloudSync = true;
+        appData.settings.syncProvider = 'gitee';
+        appData.settings.gistId = gistId || undefined;
+        await this.saveAppData(appData);
+        vscode.window.showInformationMessage('Gitee Gist 同步已成功设置。');
+        return appData;
+    }
+
+    private async setupGitLabSync(): Promise<AppData | void> {
+        const gitlabUrl = await vscode.window.showInputBox({ 
+            prompt: '输入你的GitLab实例URL，如果使用gitlab.com请留空',
+            placeHolder: 'https://gitlab.example.com',
+            ignoreFocusOut: true
+        }) || 'https://gitlab.com';
+
+        const token = await vscode.window.showInputBox({ prompt: '输入你的GitLab Personal Access Token (需要api scope)', password: true, ignoreFocusOut: true });
+        if (!token) return;
 
         try {
-            await this.context.secrets.store(DataManager.STORAGE_KEYS.GITHUB_TOKEN, token);
-            const appData = await this.getAppData();
-            appData.settings.cloudSync = true;
-            appData.settings.syncProvider = 'github';
-            appData.settings.gistId = gistId || undefined;
-            await this.saveAppData(appData);
-            vscode.window.showInformationMessage('GitHub Gist 同步设置成功！');
-            return appData;
-        } catch (error) {
-            console.error('[DataManager] Error setting up GitHub sync:', error);
-            vscode.window.showErrorMessage(`设置 GitHub 同步失败: ${error instanceof Error ? error.message : '未知错误'}`);
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: '正在验证 GitLab Token...',
+                cancellable: true
+            }, async (_, cancellationToken) => {
+                const controller = new AbortController();
+                cancellationToken.onCancellationRequested(() => controller.abort());
+
+                await axios.get(`${gitlabUrl}/api/v4/user`, {
+                    headers: { 'PRIVATE-TOKEN': token },
+                    signal: controller.signal
+                } as any);
+            });
+        } catch (error: any) {
+            let message = '请检查网络连接、实例URL或Token。';
+            if (error.response) {
+                 if (error.response.status >= 500) {
+                    message = `GitLab 服务器返回了错误 (状态码: ${error.response.status})。这可能是临时性问题，请稍后再试。`;
+                } else if (error.response.data?.message) {
+                    message = `[${error.response.status}] ${error.response.data.message}`;
+                }
+            } else if (error.message) {
+                message = error.message;
+            }
+            vscode.window.showErrorMessage(`GitLab Token 验证失败: ${message}`);
+            return;
         }
+
+        const snippetId = await vscode.window.showInputBox({ prompt: '（可选）输入现有Snippet ID进行关联' });
+        await this.context.secrets.store(DataManager.STORAGE_KEYS.GITLAB_TOKEN, token);
+
+        const appData = await this.getAppData();
+        appData.settings.cloudSync = true;
+        appData.settings.syncProvider = 'gitlab';
+        appData.settings.gistId = snippetId || undefined; // Re-use gistId for snippetId
+        appData.settings.gitlabUrl = gitlabUrl;
+        await this.saveAppData(appData);
+        vscode.window.showInformationMessage('GitLab Snippets 同步已成功设置。');
+        return appData;
+    }
+
+    private async setupWebDAVSync(): Promise<AppData | void> {
+        const webdavUrl = await vscode.window.showInputBox({ prompt: '输入你的WebDAV服务器URL' });
+        if (!webdavUrl) return;
+        
+        const webdavUsername = await vscode.window.showInputBox({ prompt: '输入WebDAV用户名' });
+        if (!webdavUsername) return;
+        
+        const webdavPassword = await vscode.window.showInputBox({ prompt: '输入WebDAV密码', password: true });
+        if (!webdavPassword) return;
+
+        try {
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: '正在验证 WebDAV 凭据...',
+                cancellable: true
+            }, async (_, cancellationToken) => {
+                const controller = new AbortController();
+                cancellationToken.onCancellationRequested(() => controller.abort());
+
+                // Use OPTIONS request as a lightweight way to check credentials and connectivity
+                await axios({
+                    method: 'OPTIONS',
+                    url: webdavUrl,
+                    auth: { username: webdavUsername, password: webdavPassword },
+                    timeout: 10000, // 10s timeout
+                    signal: controller.signal
+                } as any);
+            });
+        } catch (error: any) {
+            let message = '请检查网络连接或服务器URL。';
+            if (error.response?.status === 401) {
+                message = '凭据无效（用户名或密码错误）。';
+            } else if (error.message) {
+                message = error.message;
+            }
+            vscode.window.showErrorMessage(`WebDAV 验证失败: ${message}`);
+            return;
+        }
+
+        await this.context.secrets.store(DataManager.STORAGE_KEYS.WEBDAV_PASSWORD, webdavPassword);
+
+        const appData = await this.getAppData();
+        appData.settings.cloudSync = true;
+        appData.settings.syncProvider = 'webdav';
+        appData.settings.webdavUrl = webdavUrl;
+        appData.settings.webdavUsername = webdavUsername;
+        await this.saveAppData(appData);
+        vscode.window.showInformationMessage('WebDAV 同步已成功设置。');
+        return appData;
+    }
+
+    private async setupCustomApiSync(): Promise<AppData | void> {
+        const apiUrl = await vscode.window.showInputBox({ prompt: '输入你的自定义API端点URL', ignoreFocusOut: true });
+        if (!apiUrl) return;
+
+        const apiKey = await vscode.window.showInputBox({ prompt: '输入API密钥/Token', password: true, ignoreFocusOut: true });
+        if (!apiKey) return;
+
+        try {
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: '正在验证自定义 API...',
+                cancellable: true
+            }, async (_, cancellationToken) => {
+                const controller = new AbortController();
+                cancellationToken.onCancellationRequested(() => controller.abort());
+
+                await axios.get(apiUrl, {
+                    headers: { 'Authorization': `Bearer ${apiKey}` },
+                    timeout: 10000,
+                    signal: controller.signal
+                } as any);
+            });
+        } catch (error: any) {
+            let message = '请检查网络连接或API URL。';
+            if (error.response?.status === 401 || error.response?.status === 403) {
+                message = 'API密钥无效或无权限访问。';
+            } else if (error.message) {
+                message = error.message;
+            }
+            vscode.window.showErrorMessage(`自定义 API 验证失败: ${message}`);
+            return;
+        }
+
+        await this.context.secrets.store(DataManager.STORAGE_KEYS.CUSTOM_API_KEY, apiKey);
+
+        const appData = await this.getAppData();
+        appData.settings.cloudSync = true;
+        appData.settings.syncProvider = 'custom';
+        appData.settings.customApiUrl = apiUrl;
+        await this.saveAppData(appData);
+        vscode.window.showInformationMessage('自定义API 同步已成功设置。');
+        return appData;
     }
     
     private async disableCloudSync(): Promise<AppData | void> {
-        try {
-            await this.context.secrets.delete(DataManager.STORAGE_KEYS.GITHUB_TOKEN);
             const appData = await this.getAppData();
             appData.settings.cloudSync = false;
             appData.settings.syncProvider = null;
-            delete appData.settings.gistId;
+        appData.settings.gistId = undefined;
+        appData.settings.gitlabUrl = undefined;
+        appData.settings.webdavUrl = undefined;
+        appData.settings.webdavUsername = undefined;
+        appData.settings.customApiUrl = undefined;
+
+        await this.context.secrets.delete(DataManager.STORAGE_KEYS.GITHUB_TOKEN);
+        await this.context.secrets.delete(DataManager.STORAGE_KEYS.GITEE_TOKEN);
+        await this.context.secrets.delete(DataManager.STORAGE_KEYS.GITLAB_TOKEN);
+        await this.context.secrets.delete(DataManager.STORAGE_KEYS.WEBDAV_PASSWORD);
+        await this.context.secrets.delete(DataManager.STORAGE_KEYS.CUSTOM_API_KEY);
+
             await this.saveAppData(appData);
             vscode.window.showInformationMessage('云同步已禁用。');
             return appData;
-        } catch (error) {
-            console.error('[DataManager] Error disabling cloud sync:', error);
-            vscode.window.showErrorMessage(`禁用云同步失败: ${error instanceof Error ? error.message : '未知错误'}`);
-        }
     }
 
     public async syncToCloud(): Promise<void> {
         const appData = await this.getAppData();
         if (!appData.settings.cloudSync || !appData.settings.syncProvider) {
-            vscode.window.showWarningMessage('云同步未配置，请先在设置中完成配置。');
+            vscode.window.showErrorMessage('云同步未配置，请先设置。');
             return;
         }
 
-        await vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: '同步到云端...',
-            cancellable: false
-        }, async (progress) => {
-            try {
+        const dataToSync = JSON.stringify(appData, null, 2);
+        const fileName = DataManager.SYNC_FILENAME;
+        let gistId = appData.settings.gistId;
+
+        try {
+            switch (appData.settings.syncProvider) {
+                case 'github':
+                    {
                 const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITHUB_TOKEN);
-                if (!token) throw new Error('未找到 GitHub Token');
-
+                        if (!token) throw new Error('未找到GitHub Token');
                 const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' };
-                const contentToSync = JSON.stringify(appData, null, 2);
-                const files = { [DataManager.SYNC_FILENAME]: { content: contentToSync } };
+                        const data = { files: { [fileName]: { content: dataToSync } }, public: false };
 
-                let gistId = appData.settings.gistId;
+                        if (gistId) {
+                            await axios.patch(`https://api.github.com/gists/${gistId}`, data, { headers });
+                        } else {
+                            const response = await axios.post<GistCreateResponse>('https://api.github.com/gists', data, { headers });
+                            gistId = response.data.id;
+                            appData.settings.gistId = gistId;
+                            await this.saveAppData(appData);
+                        }
+                    }
+                    break;
+                case 'gitee':
+                    {
+                        const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITEE_TOKEN);
+                        if (!token) throw new Error('未找到Gitee Token');
+                        
+                        // Gitee API requires access_token to be a query parameter.
+                        const params = { access_token: token };
+                        const data = { files: { [fileName]: { content: dataToSync } }, public: false, description: "Prompt Hub Data" };
 
-                if (gistId) {
-                    // Update existing Gist
-                    progress.report({ message: '更新 Gist...' });
-                    await axios.patch(`https://api.github.com/gists/${gistId}`, { files }, { headers });
+                        if (gistId) {
+                            // Based on repeated failures, we are now attempting the most minimal possible payload for an update.
+                            // Some strict APIs only accept the fields that are actually being changed.
+                            const patchData = {
+                                files: {
+                                    [fileName]: {
+                                        content: dataToSync
+                                    }
+                                }
+                            };
+                            await axios.patch(`https://gitee.com/api/v5/gists/${gistId}`, patchData, { params });
+                        } else {
+                            const response = await axios.post<GiteeGistResponse>('https://gitee.com/api/v5/gists', data, { params });
+                            gistId = response.data.id;
+                            appData.settings.gistId = gistId;
+                            await this.saveAppData(appData);
+                        }
+                    }
+                    break;
+                case 'gitlab':
+                    {
+                        const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITLAB_TOKEN);
+                        if (!token) throw new Error('未找到GitLab Token');
+                        const baseUrl = appData.settings.gitlabUrl || 'https://gitlab.com';
+                        const headers = { 'PRIVATE-TOKEN': token };
+                        const data = { title: fileName, file_name: fileName, content: dataToSync, visibility: 'private' };
+                        
+                        if (gistId) { // snippet id
+                            await axios.put(`${baseUrl}/api/v4/snippets/${gistId}`, { content: dataToSync }, { headers });
                 } else {
-                    // Create new Gist
-                    progress.report({ message: '创建新的 Gist...' });
-                    const response = await axios.post<GistCreateResponse>('https://api.github.com/gists', {
-                        files,
-                        public: false,
-                        description: 'Lyfe\'s Prompt Hub Data'
-                    }, { headers });
+                            const response = await axios.post<GitLabSnippetResponse>(`${baseUrl}/api/v4/snippets`, data, { headers });
                     gistId = response.data.id;
                     appData.settings.gistId = gistId;
                     await this.saveAppData(appData);
                 }
-                vscode.window.showInformationMessage('成功同步到云端！');
-            } catch (error) {
-                console.error('Sync to cloud failed:', error);
-                vscode.window.showErrorMessage(`同步失败: ${error instanceof Error ? error.message : '请检查网络或Token权限'}`);
+                    }
+                    break;
+                case 'webdav':
+                    {
+                        const { webdavUrl, webdavUsername } = appData.settings;
+                        const password = await this.context.secrets.get(DataManager.STORAGE_KEYS.WEBDAV_PASSWORD);
+                        if (!webdavUrl || !webdavUsername || !password) throw new Error('WebDAV配置不完整');
+
+                        const fullUrl = path.join(webdavUrl, fileName).replace(/\\/g, '/');
+                        await axios.put(fullUrl, dataToSync, {
+                            auth: { username: webdavUsername, password }
+                        });
+                    }
+                    break;
+                case 'custom':
+                    {
+                        const apiUrl = appData.settings.customApiUrl;
+                        const apiKey = await this.context.secrets.get(DataManager.STORAGE_KEYS.CUSTOM_API_KEY);
+                        if (!apiUrl || !apiKey) throw new Error('自定义API配置不完整');
+                        
+                        await axios.post(apiUrl, { data: dataToSync }, { headers: { 'Authorization': `Bearer ${apiKey}` }});
+                    }
+                    break;
             }
-        });
+            vscode.window.showInformationMessage(`数据已成功同步到 ${appData.settings.syncProvider}。`);
+        } catch (error: any) {
+                console.error('Sync to cloud failed:', error);
+            vscode.window.showErrorMessage(`云同步失败: ${error.message}`);
+            }
     }
 
     public async syncFromCloud(): Promise<AppData | null> {
         const appData = await this.getAppData();
-        if (!appData.settings.cloudSync || !appData.settings.gistId) {
-            vscode.window.showWarningMessage('云同步未配置或缺少Gist ID。');
+        if (!appData.settings.cloudSync || !appData.settings.syncProvider || !appData.settings.gistId) {
+            vscode.window.showErrorMessage('云同步未配置或未关联远程数据。');
             return null;
         }
         
-        const choice = await vscode.window.showWarningMessage(
-            '从云端同步将覆盖所有本地数据，是否继续？',
-            { modal: true },
-            '继续同步'
-        );
-        if (choice !== '继续同步') return null;
+        let gistId = appData.settings.gistId;
 
-        return await vscode.window.withProgress({
-            location: vscode.ProgressLocation.Notification,
-            title: '从云端同步...',
-            cancellable: false
-        }, async (progress) => {
-            try {
+        try {
+            let remoteDataContent: string | undefined;
+
+            switch (appData.settings.syncProvider) {
+                case 'github':
+                    {
                 const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITHUB_TOKEN);
-                if (!token) throw new Error('未找到 GitHub Token');
-
+                        if (!token) throw new Error('未找到GitHub Token');
                 const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' };
-                progress.report({ message: '正在获取Gist...' });
-                const response = await axios.get<GistGetResponse>(`https://api.github.com/gists/${appData.settings.gistId}`, { headers });
-                
-                const file = response.data.files[DataManager.SYNC_FILENAME];
-                if (!file || !file.content) throw new Error('在Gist中未找到同步文件。');
+                        const response = await axios.get<GistGetResponse>(`https://api.github.com/gists/${gistId}`, { headers });
+                        remoteDataContent = response.data.files[DataManager.SYNC_FILENAME]?.content;
+                    }
+                    break;
+                case 'gitee':
+                    {
+                        const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITEE_TOKEN);
+                        if (!token) throw new Error('未找到Gitee Token');
+                        const response = await axios.get<any>(`https://gitee.com/api/v5/gists/${gistId}?access_token=${token}`);
+                        // Gitee's get-single-gist response structure is different from GitHub's
+                        remoteDataContent = response.data.files[DataManager.SYNC_FILENAME]?.content;
+                    }
+                    break;
+                case 'gitlab':
+                    {
+                        const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITLAB_TOKEN);
+                        if (!token) throw new Error('未找到GitLab Token');
+                        const baseUrl = appData.settings.gitlabUrl || 'https://gitlab.com';
+                        const headers = { 'PRIVATE-TOKEN': token };
+                        const response = await axios.get(
+                            `${baseUrl}/api/v4/snippets/${gistId}/raw`,
+                            {
+                                headers,
+                                responseType: 'text'
+                            }
+                        );
+                        remoteDataContent = response.data as string;
+                    }
+                    break;
+                case 'webdav':
+                     {
+                        const { webdavUrl, webdavUsername } = appData.settings;
+                        const password = await this.context.secrets.get(DataManager.STORAGE_KEYS.WEBDAV_PASSWORD);
+                        if (!webdavUrl || !webdavUsername || !password) throw new Error('WebDAV配置不完整');
 
-                const cloudData = JSON.parse(file.content) as AppData;
-                
-                // Keep local workspace/sync settings
-                cloudData.settings.workspaceMode = appData.settings.workspaceMode;
-                cloudData.settings.cloudSync = appData.settings.cloudSync;
-                cloudData.settings.gistId = appData.settings.gistId;
-                cloudData.settings.syncProvider = appData.settings.syncProvider;
+                        const fullUrl = path.join(webdavUrl, DataManager.SYNC_FILENAME).replace(/\\/g, '/');
+                        const response = await axios.get(fullUrl, {
+                            auth: { username: webdavUsername, password },
+                            responseType: 'text'
+                        });
+                        remoteDataContent = response.data as string;
+                    }
+                    break;
+                case 'custom':
+                    {
+                        const apiUrl = appData.settings.customApiUrl;
+                        const apiKey = await this.context.secrets.get(DataManager.STORAGE_KEYS.CUSTOM_API_KEY);
+                        if (!apiUrl || !apiKey) throw new Error('自定义API配置不完整');
 
-                await this.saveAppData(cloudData);
-                vscode.window.showInformationMessage('成功从云端恢复数据！');
-                return cloudData;
-            } catch (error) {
-                 console.error('Sync from cloud failed:', error);
-                vscode.window.showErrorMessage(`从云端同步失败: ${error instanceof Error ? error.message : '请检查网络、Gist ID或Token权限'}`);
+                        const response = await axios.get<{data: string}>(apiUrl, { headers: { 'Authorization': `Bearer ${apiKey}` } });
+                        remoteDataContent = response.data.data; // Assuming API returns { data: '...' }
+                    }
+                    break;
+            }
+
+            if (!remoteDataContent) {
+                vscode.window.showErrorMessage('从云端获取数据失败或数据为空。');
                 return null;
             }
-        });
+
+            const remoteData: AppData = JSON.parse(remoteDataContent);
+            
+            const choice = await vscode.window.showWarningMessage(
+                `从云端同步会覆盖本地数据。云端数据最后修改于 ${new Date(remoteData.metadata.lastModified).toLocaleString()}。确定要同步吗？`,
+                { modal: true }, '确定同步'
+            );
+
+            if (choice === '确定同步') {
+                await this.saveAppData(remoteData);
+                vscode.window.showInformationMessage('数据已成功从云端同步。');
+                return remoteData;
+            }
+            return null;
+
+        } catch (error: any) {
+            console.error('Sync from cloud failed:', error);
+            vscode.window.showErrorMessage(`从云端同步失败: ${error.message}`);
+            return null;
+        }
     }
     // #endregion
 
