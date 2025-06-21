@@ -163,7 +163,7 @@
                 
                         <!-- GitHub Config -->
                         <div id="github-config" class="provider-config hidden">
-                            <p class="settings-description">通过私人 GitHub Gist 同步您的数据。需要一个有 `gist` 范围权限的 Personal Access Token。</p>
+                            <p class="settings-description">通过私人 GitHub Gist 同步。需要一个有 `gist` 权限的 <a href="https://github.com/settings/tokens" target="_blank">Personal Access Token</a>。了解如何 <a href="https://docs.github.com/cn/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens" target="_blank">创建访问令牌</a>。</p>
                             <div class="form-group">
                                 <label for="github-token">GitHub Token</label>
                                 <input type="password" id="github-token" class="input-field" placeholder="粘贴您的 Personal Access Token">
@@ -176,7 +176,7 @@
                 
                         <!-- Gitee Config -->
                         <div id="gitee-config" class="provider-config hidden">
-                             <p class="settings-description">通过 Gitee Gist 同步。需要一个有 `gists` 权限的 Personal Access Token。</p>
+                             <p class="settings-description">通过 Gitee Gist 同步。需要一个有 `gists` 权限的 <a href="https://gitee.com/personal_access_tokens" target="_blank">Personal Access Token</a>。了解如何 <a href="https://gitee.com/help/articles/4181" target="_blank">创建访问令牌</a>。</p>
                             <div class="form-group">
                                 <label for="gitee-token">Gitee Token</label>
                                 <input type="password" id="gitee-token" class="input-field" placeholder="粘贴您的 Personal Access Token">
@@ -189,7 +189,7 @@
                         
                         <!-- GitLab Config -->
                         <div id="gitlab-config" class="provider-config hidden">
-                            <p class="settings-description">通过 GitLab Snippet 同步。如果使用自建实例，请提供实例 URL。Token 需要 `api` 权限。</p>
+                            <p class="settings-description">通过 GitLab Snippet 同步。如果使用自建实例，请提供实例 URL。Token 需要 `api` 权限。点此 <a href="https://gitlab.com/-/user_settings/personal_access_tokens" target="_blank">创建访问令牌</a>。查看 <a href="https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html" target="_blank">官方文档</a>。</p>
                             <div class="form-group">
                                 <label for="gitlab-url">GitLab URL (可选)</label>
                                 <input type="text" id="gitlab-url" class="input-field" placeholder="自建 GitLab 地址, 默认为 gitlab.com">
@@ -206,7 +206,7 @@
                 
                         <!-- WebDAV Config -->
                         <div id="webdav-config" class="provider-config hidden">
-                            <p class="settings-description">通过 WebDAV 服务器同步。请确保您填写的 URL、用户名和密码正确无误。</p>
+                            <p class="settings-description">通过 WebDAV 服务器同步数据。不知道如何配置？查看 <a href="https://help.jianguoyun.com/p/694/" target="_blank">坚果云</a>, <a href="https://www.synology.cn/zh-cn/knowledgebase/DSM/tutorial/File_Sharing/How_to_access_files_on_Synology_NAS_with_WebDAV" target="_blank">群晖 NAS</a>, 或 <a href="https://nextcloud.com/docs/" target="_blank">Nextcloud</a> 的设置教程。</p>
                             <div class="form-group">
                                 <label for="webdav-url">WebDAV URL</label>
                                 <input type="text" id="webdav-url" class="input-field" placeholder="例如: https://dav.example.com/remote.php/dav/files/user">
@@ -223,7 +223,7 @@
                 
                         <!-- Custom API Config -->
                         <div id="custom-config" class="provider-config hidden">
-                            <p class="settings-description">通过您自己的 API 端点进行同步。端点需要支持 GET 和 POST (或 PUT) 请求。</p>
+                            <p class="settings-description">通过您自己的 API 端点进行同步。端点需要支持 GET (获取) 和 POST/PUT (上传) 请求。未来会提供详细的 API 规范文档。</p>
                             <div class="form-group">
                                 <label for="custom-api-url">API URL</label>
                                 <input type="text" id="custom-api-url" class="input-field" placeholder="支持 GET/POST 的端点">
