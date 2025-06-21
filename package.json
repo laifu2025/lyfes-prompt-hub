@@ -2,7 +2,7 @@
   "name": "lyfes-prompt-hub",
   "displayName": "Lyfes Prompt Hub",
   "description": "A local-first, powerful prompt management tool that helps you efficiently organize, create, and reuse prompts.",
-  "version": "2.2.4",
+  "version": "2.5.0",
   "publisher": "Lyfe",
   "engines": {
     "vscode": "^1.85.0"

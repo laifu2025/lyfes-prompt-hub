@@ -171,9 +171,8 @@ function setSyncConfigLockedState(isLocked, settings, provider) {
     if (isLocked) {
         renderSyncSummary(settings);
         document.getElementById('sync-actions-container').classList.remove('hidden');
-        // 在这里重新绑定监听器确保按钮在DOM中
-        document.getElementById('sync-to-cloud-btn')?.addEventListener('click', handleSyncToCloud);
-        document.getElementById('sync-from-cloud-btn')?.addEventListener('click', handleSyncFromCloud);
+        // 注意：不在这里绑定事件监听器，因为它们应该在init时只绑定一次
+        // 动态按钮的监听器将在renderSyncSummary中处理
     } else {
         // 解锁时，也显示正确的提供商配置输入
         showProviderConfig(provider);
@@ -231,7 +230,6 @@ export async function handleSaveSyncSettings() {
         state.appData = updatedAppData;
 
         setSyncConfigLockedState(true, updatedAppData.settings, provider);
-        renderSettingsStatus(updatedAppData.settings);
         highlightSyncActions();
         // 成功通知已由后端处理为原生VS Code通知
     } catch (error) {
@@ -273,6 +271,25 @@ function handleSyncFromCloud() {
             // 错误由后端处理并显示为原生VS Code通知
             console.error('从云端同步失败:', err);
         });
+}
+
+/**
+ * 重置云同步设置
+ */
+function handleResetCloudSync() {
+    if (confirm('确定要重置云同步设置吗？\n\n这将：\n• 关闭云同步功能\n• 清除所有保存的Token和密码\n• 重置所有云同步相关配置\n\n此操作不可撤销！')) {
+        api.postMessageWithResponse('webview:resetCloudSync')
+            .then(result => {
+                if (result.success) {
+                    // 成功通知已由后端处理为原生VS Code通知
+                    console.log('云同步设置已重置');
+                }
+            })
+            .catch(err => {
+                api.showNotification(`重置失败: ${err.message}`, 'error');
+                console.error('重置云同步设置失败:', err);
+            });
+    }
 }
 
 /**
@@ -380,7 +397,6 @@ export function updateCloudSyncView(settings) {
         elements.customConfig.url.value = settings.customApiUrl || '';
     }
 
-    renderSettingsStatus(settings);
     highlightSyncActions();
 }
 
@@ -399,6 +415,16 @@ export function init() {
     elements.cloudSyncEnabledToggle.addEventListener('change', handleSyncToggle);
     elements.syncProviderSelect.addEventListener('change', handleProviderChange);
     document.getElementById('auto-sync-toggle').addEventListener('change', handleAutoSyncToggle);
+    
+    // 绑定同步操作按钮的事件监听器（只绑定一次）
+    const syncToCloudBtn = document.getElementById('sync-to-cloud-btn');
+    const syncFromCloudBtn = document.getElementById('sync-from-cloud-btn');
+    if (syncToCloudBtn) {
+        syncToCloudBtn.addEventListener('click', handleSyncToCloud);
+    }
+    if (syncFromCloudBtn) {
+        syncFromCloudBtn.addEventListener('click', handleSyncFromCloud);
+    }
     
     isInitialized = true;
     console.log('云同步模块已初始化');

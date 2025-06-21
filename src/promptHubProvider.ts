@@ -181,6 +181,59 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 this._postMessage({ type: 'disableCloudSyncResponse', requestId: message.requestId, success: true });
                 break;
             }
+            case 'webview:resetCloudSync': {
+                await this._dataManager.resetCloudSync();
+                this.refresh();
+                this._postMessage({ type: 'resetCloudSyncResponse', requestId: message.requestId, success: true });
+                vscode.window.showInformationMessage('云同步设置已重置为默认状态（关闭）');
+                break;
+            }
+
+            case 'webview:resetAllData': {
+                try {
+                    const resetResult = await this._dataManager.resetAllData();
+                    this.refresh();
+                    this._postMessage({ 
+                        type: 'resetAllDataResponse', 
+                        requestId: message.requestId, 
+                        success: true, 
+                        data: resetResult 
+                    });
+                    vscode.window.showInformationMessage('所有数据已重置为默认状态，已添加软件开发生命周期相关的示例数据！');
+                } catch (error) {
+                    this._postMessage({ 
+                        type: 'resetAllDataResponse', 
+                        requestId: message.requestId, 
+                        success: false, 
+                        error: error instanceof Error ? error.message : '重置所有数据失败' 
+                    });
+                    vscode.window.showErrorMessage(`重置所有数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
+                }
+                break;
+            }
+
+            case 'webview:clearAllData': {
+                try {
+                    const clearResult = await this._dataManager.clearAllData();
+                    this.refresh();
+                    this._postMessage({ 
+                        type: 'clearAllDataResponse', 
+                        requestId: message.requestId, 
+                        success: true, 
+                        data: clearResult 
+                    });
+                    vscode.window.showInformationMessage('所有数据已清空，只保留默认设置！');
+                } catch (error) {
+                    this._postMessage({ 
+                        type: 'clearAllDataResponse', 
+                        requestId: message.requestId, 
+                        success: false, 
+                        error: error instanceof Error ? error.message : '清空所有数据失败' 
+                    });
+                    vscode.window.showErrorMessage(`清空所有数据失败: ${error instanceof Error ? error.message : '未知错误'}`);
+                }
+                break;
+            }
             case 'webview:syncToCloud': {
                 await this._dataManager.syncToCloud();
                 this._postMessage({ type: 'syncToCloudResponse', requestId: message.requestId, success: true });

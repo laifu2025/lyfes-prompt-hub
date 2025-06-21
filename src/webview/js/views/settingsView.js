@@ -83,20 +83,8 @@ function setSaveButtonLoading(isLoading) {
 export function init(refreshFunc) {
     if (hasInitialized) return;
     refreshCallback = refreshFunc;
-    const { mainViewElements, editViewElements, settingsViewElements: elements, filterViewElements } = dom;
 
-    // Back buttons
-    Array.from(document.querySelectorAll('.btn-back')).forEach(btn => {
-        btn.addEventListener('click', () => navigateTo('main'));
-    });
-
-    // Main buttons
-    mainViewElements.addPromptButton.addEventListener('click', () => navigateTo('edit', { isNew: true }));
-    mainViewElements.manageCategoriesButton.addEventListener('click', () => navigateTo('category'));
-    mainViewElements.settingsButton.addEventListener('click', () => navigateTo('settings'));
-    mainViewElements.filterButton.addEventListener('click', () => navigateTo('filter'));
-
-    // 初始化子模块
+    // 只初始化设置相关的子模块，不要重复绑定主视图的按钮
     dataManagementView.init();
     cloudSyncView.init();
     storageManagementView.init();

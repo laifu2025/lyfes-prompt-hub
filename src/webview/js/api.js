@@ -68,6 +68,15 @@ export function showNotification(message, type = 'info') {
 export const showToast = showNotification;
 
 /**
+ * 显示确认对话框
+ * @param {string} message 确认消息
+ * @returns {Promise<boolean>} 用户是否确认
+ */
+export function showConfirmation(message) {
+    return postMessageWithResponse('showConfirmation', { message });
+}
+
+/**
  * Saves the cloud sync settings.
  * @param {object} settings The sync settings to save.
  * @returns {Promise<any>}
