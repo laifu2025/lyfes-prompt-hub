@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
 import { PromptHubProvider } from './promptHubProvider';
-import { DataManager } from './dataManager';
+import { DataManager, SyncConflictError, SyncError } from './dataManager';
 
 // let dataManager: DataManager; // REMOVE
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Prompt Hub 扩展已激活');
     
     // dataManager = new DataManager(context); // REMOVE
     
@@ -120,23 +119,61 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.syncToCloud', async () => {
+            const dataManager = promptHubProvider.getDataManager();
             try {
-                await promptHubProvider.getDataManager().syncToCloud();
-            } catch (error) {
-                vscode.window.showErrorMessage(`同步到云端失败: ${error}`);
+                await dataManager.syncToCloud();
+                vscode.window.showInformationMessage('成功同步到云端。');
+            } catch (error: any) {
+                if (error instanceof SyncConflictError) {
+                    const choice = await vscode.window.showWarningMessage(
+                        `同步冲突：云端数据比本地新。强制上传将覆盖云端更改。`,
+                        { modal: true },
+                        '强制上传'
+                    );
+                    if (choice === '强制上传') {
+                        try {
+                            await dataManager.syncToCloud(true);
+                            vscode.window.showInformationMessage('强制上传成功。');
+                        } catch (e: any) {
+                            vscode.window.showErrorMessage(`强制上传失败: ${e.message}`);
+                        }
+                    }
+                } else {
+                    vscode.window.showErrorMessage(`同步到云端失败: ${error.message}`);
+                }
             }
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('promptHub.syncFromCloud', async () => {
+            const dataManager = promptHubProvider.getDataManager();
             try {
-                const result = await promptHubProvider.getDataManager().syncFromCloud();
-                if (result) {
-                    promptHubProvider.refresh();
+                await dataManager.syncFromCloud();
+                promptHubProvider.refresh();
+                vscode.window.showInformationMessage('从云端同步成功。');
+            } catch (error: any) {
+                if (error instanceof SyncConflictError) {
+                    const choice = await vscode.window.showWarningMessage(
+                        `同步冲突：本地数据比云端新或无变化。强制下载将覆盖本地更改。`,
+                        { modal: true },
+                        '强制下载'
+                    );
+                    if (choice === '强制下载') {
+                        try {
+                            await dataManager.syncFromCloud(true);
+                            promptHubProvider.refresh();
+                            vscode.window.showInformationMessage('强制下载成功。');
+                        } catch (e: any) {
+                            vscode.window.showErrorMessage(`强制下载失败: ${e.message}`);
+                        }
+                    }
+                } else if (error instanceof SyncError && error.code === 'remote_empty') {
+                    vscode.window.showInformationMessage('云端无数据，无需同步。');
                 }
-            } catch (error) {
-                vscode.window.showErrorMessage(`从云端同步失败: ${error}`);
+                else {
+                    vscode.window.showErrorMessage(`从云端同步失败: ${error.message}`);
+                }
             }
         })
     );
@@ -195,10 +232,51 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push({
         dispose: () => promptHubProvider.getDataManager().dispose()
     });
+
+    // 启动时自动同步检查
+    // Use a timeout to ensure the webview has had a chance to fully initialize
+    setTimeout(() => {
+        handleStartupSync(promptHubProvider.getDataManager(), promptHubProvider);
+    }, 2000); 
 }
 
-export function deactivate() {
-    console.log('Prompt Hub 扩展已停用');
+async function handleStartupSync(dataManager: DataManager, provider: PromptHubProvider) {
+    const appData = await dataManager.getAppData();
+    if (appData.settings.cloudSync && appData.settings.autoSync) {
+        vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Prompt Hub",
+            cancellable: false
+        }, async (progress) => {
+            progress.report({ message: '正在与云端同步数据...' });
+            try {
+                const result = await dataManager.reconcileCloudSync();
+                switch (result.status) {
+                    case 'downloaded':
+                        vscode.window.showInformationMessage('已从云端同步最新数据。');
+                        provider.refresh();
+                        break;
+                    case 'uploaded':
+                        vscode.window.showInformationMessage('本地数据已成功同步到云端。');
+                        break;
+                    case 'in_sync':
+                        // Data already in sync, no action needed
+                        break;
+                    case 'conflict':
+                        vscode.window.showWarningMessage('自动同步检测到冲突，请手动解决。');
+                        break;
+                    case 'error':
+                        vscode.window.showErrorMessage(`启动时自动同步失败: ${result.message}`);
+                        break;
+                }
+            } catch (error: any) {
+                 vscode.window.showErrorMessage(`启动时自动同步发生未知错误: ${error.message}`);
+            }
+        });
+    }
+}
+
+function deactivate() {
     // if (dataManager) { // REMOVED
     //     dataManager.dispose();
     // }

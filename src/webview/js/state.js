@@ -87,6 +87,7 @@ export const dom = {
         view: document.getElementById('settings-view'),
         backButton: document.querySelector('#settings-view .btn-back'),
         importButton: document.getElementById('import-btn'),
+        importInput: document.getElementById('import-file-input'),
         exportButton: document.getElementById('export-btn'),
         createBackupButton: document.getElementById('create-backup-btn'),
         restoreBackupButton: document.getElementById('restore-backup-btn'),

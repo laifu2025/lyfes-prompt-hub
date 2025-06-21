@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { showSettingsSaveStatus } from './uiManager.js';
 
 /**
  * Sends a message to the extension backend and returns a Promise that resolves with the response.
@@ -35,6 +36,16 @@ export function initializeApiListener() {
             }
         // Handle messages initiated by the backend (e.g., manual refresh)
         } else if (!requestId) { 
+            // This handles older, non-request-response messages
+            if (message.command === 'settingsSaved') {
+                showSettingsSaveStatus(true);
+                return;
+            }
+            if (message.command === 'settingsSaveFailed') {
+                showSettingsSaveStatus(false, message.message);
+                return;
+            }
+
             if (type === 'appDataResponse' && message.isRefresh) {
                 window.dispatchEvent(new CustomEvent('manualRefresh', { detail: message.data }));
             } else if (type === 'error') {

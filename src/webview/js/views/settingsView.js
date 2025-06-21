@@ -1,6 +1,7 @@
 import { dom, state } from '../state.js';
 import * as api from '../api.js';
 import { navigateTo, renderSettingsStatus } from '../uiManager.js';
+import { init as initTooltips } from '../tooltips.js';
 
 let refreshCallback = () => {};
 let hasInitialized = false;
@@ -74,6 +75,9 @@ function showProviderConfig(provider) {
         case 'custom':
             elements.customConfig.container.classList.remove('hidden');
             break;
+        default:
+            // No specific config to show
+            break;
     }
 }
 
@@ -84,10 +88,12 @@ function handleProviderChange(event) {
 function handleSyncToggle(event) {
     const { settingsViewElements: elements } = dom;
     const isEnabled = event.target.checked;
+    
     elements.cloudSyncConfigContainer.classList.toggle('hidden', !isEnabled);
 
     // Hide sync actions when toggling off
     document.getElementById('sync-actions-container').classList.add('hidden');
+    document.getElementById('auto-sync-container').classList.add('hidden');
 
     if (!isEnabled) {
         // If user disables sync, call backend to clear settings
@@ -98,6 +104,13 @@ function handleSyncToggle(event) {
                 showProviderConfig('disabled');
             })
             .catch(err => api.showToast(`禁用失败: ${err.message}`, 'error'));
+    } else {
+        // When user enables sync, show the current provider config or default to disabled
+        const currentProvider = elements.syncProviderSelect.value || 'disabled';
+        showProviderConfig(currentProvider);
+        
+        // Ensure the settings form is visible (not locked)
+        setSyncConfigLockedState(false, {}, currentProvider);
     }
 }
 
@@ -164,6 +177,9 @@ function setSyncConfigLockedState(isLocked, settings, provider) {
     // Main select should also be locked
     elements.syncProviderSelect.disabled = isLocked;
 
+    // Only show auto-sync option when sync is successfully configured
+    document.getElementById('auto-sync-container').classList.toggle('hidden', !isLocked);
+
     if (isLocked) {
         renderSyncSummary(settings);
         document.getElementById('sync-actions-container').classList.remove('hidden');
@@ -226,7 +242,7 @@ export async function handleSaveSyncSettings() {
         setSyncConfigLockedState(true, updatedAppData.settings, provider);
         renderSettingsStatus(updatedAppData.settings); // Explicitly update status indicators
         highlightSyncActions();
-        api.showToast('云同步设置已保存并验证成功！', 'success');
+        // Success notification is already handled by the backend as a native VS Code notification
     } catch (error) {
         // Errors are now globally handled and shown as VS Code notifications,
         // so we just need to catch them to prevent unhandled promise rejections.
@@ -240,12 +256,11 @@ function handleSyncToCloud() {
     api.postMessageWithResponse('webview:syncToCloud')
         .then(result => {
             if (result.success) {
-                api.showToast(result.message || '同步成功！', 'success');
+                // Success notification is already handled by the backend as a native VS Code notification
             }
         })
         .catch(err => {
             // Error is handled by the backend and displayed as a native VS Code notification.
-            // No need to show a separate toast here.
             console.error('Sync to cloud failed:', err);
         });
 }
@@ -253,71 +268,141 @@ function handleSyncToCloud() {
 function handleSyncFromCloud() {
     api.postMessageWithResponse('webview:syncFromCloud')
         .then(result => {
-            if (result) {
-                refreshCallback();
+            if (result.success) {
+                // Success notification is already handled by the backend as a native VS Code notification
             }
         })
         .catch(err => {
-            // Error is handled by the backend.
-            console.error('Sync from cloud failed:', err);
+            // Error is handled by the backend and displayed as a native VS Code notification.
+             console.error('Sync from cloud failed:', err);
+        });
+}
+
+function handleAutoSyncToggle(event) {
+    const isEnabled = event.target.checked;
+    api.postMessageWithResponse('webview:setSetting', { key: 'autoSync', value: isEnabled })
+        .then(() => {
+            api.showNotification(`自动同步已${isEnabled ? '开启' : '关闭'}`, 'info');
+        })
+        .catch(err => {
+            api.showNotification(`操作失败: ${err.message}`, 'error');
+            // Revert the checkbox state on failure
+            event.target.checked = !isEnabled;
         });
 }
 
 export function updateCloudSyncView(settings) {
-    if (!dom.settingsViewElements.view) return; // View not present
-
     const { settingsViewElements: elements } = dom;
-    const isConfigured = settings && settings.syncProvider && settings.syncProvider !== 'disabled';
-    
-    elements.cloudSyncEnabledToggle.checked = isConfigured;
-    elements.cloudSyncConfigContainer.classList.toggle('hidden', !isConfigured);
-    
-    if (isConfigured) {
+    if (!elements.cloudSyncEnabledToggle) {
+        return;
+    }
+
+    elements.cloudSyncEnabledToggle.checked = settings.cloudSync;
+    elements.cloudSyncConfigContainer.classList.toggle('hidden', !settings.cloudSync);
+
+    const isConfiguredAndEnabled = settings.syncProvider && settings.syncProvider !== 'disabled' && settings.gistId;
+
+    setSyncConfigLockedState(isConfiguredAndEnabled, settings, settings.syncProvider);
+
+    if (settings.syncProvider) {
         elements.syncProviderSelect.value = settings.syncProvider;
-        setSyncConfigLockedState(true, settings, settings.syncProvider);
+        // 确保显示正确的配置表单
+        showProviderConfig(settings.syncProvider);
     } else {
         elements.syncProviderSelect.value = 'disabled';
-        setSyncConfigLockedState(false, {}, 'disabled');
+        // 如果云同步开启但没有配置提供商，显示默认的配置选择
+        if (settings.cloudSync) {
+            showProviderConfig('disabled');
         }
+    }
+
+    // Update auto-sync toggle state
+    const autoSyncToggle = document.getElementById('auto-sync-toggle');
+    if (autoSyncToggle) {
+        autoSyncToggle.checked = !!settings.autoSync;
+    }
+    
+    // Fill in existing values if present
+    if (settings.syncProvider === 'github' && elements.githubConfig.gistId) {
+        elements.githubConfig.gistId.value = settings.gistId || '';
+    } else if (settings.syncProvider === 'gitee' && elements.giteeConfig.gistId) {
+        elements.giteeConfig.gistId.value = settings.gistId || '';
+    } else if (settings.syncProvider === 'gitlab' && elements.gitlabConfig.snippetId) {
+        elements.gitlabConfig.snippetId.value = settings.gistId || '';
+        elements.gitlabConfig.url.value = settings.gitlabUrl || '';
+    } else if (settings.syncProvider === 'webdav' && elements.webdavConfig.url) {
+        elements.webdavConfig.url.value = settings.webdavUrl || '';
+        elements.webdavConfig.username.value = settings.webdavUsername || '';
+    } else if (settings.syncProvider === 'custom' && elements.customConfig.url) {
+        elements.customConfig.url.value = settings.customApiUrl || '';
+    }
+
+    renderSettingsStatus(settings);
+    highlightSyncActions();
 }
 
 function setSaveButtonLoading(isLoading) {
     const saveButton = dom.settingsViewElements.saveSyncSettingsButton;
-    if (saveButton) {
-        saveButton.disabled = isLoading;
-        saveButton.textContent = isLoading ? '正在验证...' : '保存并验证';
+    if (isLoading) {
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<span class="spinner"></span> 验证中...';
+    } else {
+        saveButton.disabled = false;
+        saveButton.textContent = '保存并验证';
     }
 }
 
 export function init(refreshFunc) {
     if (hasInitialized) return;
+    refreshCallback = refreshFunc;
+    const { mainViewElements, editViewElements, settingsViewElements: elements, filterViewElements } = dom;
 
-        refreshCallback = refreshFunc;
-    const { settingsViewElements: elements } = dom;
+    // Back buttons
+    Array.from(document.querySelectorAll('.btn-back')).forEach(btn => {
+        btn.addEventListener('click', () => navigateTo('main'));
+    });
 
-    elements.importButton?.addEventListener('click', () => document.getElementById('file-import-input').click());
-    document.getElementById('file-import-input')?.addEventListener('change', (e) => handleImport(e.target.files));
-    elements.exportButton?.addEventListener('click', handleExport);
-    elements.createBackupButton?.addEventListener('click', handleBackup);
-    elements.restoreBackupButton?.addEventListener('click', handleRestore);
+    // Main buttons
+    mainViewElements.addPromptButton.addEventListener('click', () => navigateTo('edit', { isNew: true }));
+    mainViewElements.manageCategoriesButton.addEventListener('click', () => navigateTo('category'));
+    mainViewElements.settingsButton.addEventListener('click', () => navigateTo('settings'));
+    mainViewElements.filterButton.addEventListener('click', () => navigateTo('filter'));
+
+    // Data Management listeners
+    elements.importButton.addEventListener('click', () => elements.importInput.click());
+    elements.importInput.addEventListener('change', (event) => handleImport(event.target.files));
+    elements.exportButton.addEventListener('click', handleExport);
+    elements.createBackupButton.addEventListener('click', handleBackup);
+    elements.restoreBackupButton.addEventListener('click', handleRestore);
     
-    elements.cloudSyncEnabledToggle?.addEventListener('change', handleSyncToggle);
-    elements.syncProviderSelect?.addEventListener('change', handleProviderChange);
-    elements.saveSyncSettingsButton?.addEventListener('click', handleSaveSyncSettings);
+    // Cloud Sync listeners
+    elements.saveSyncSettingsButton.addEventListener('click', handleSaveSyncSettings);
+    elements.cloudSyncEnabledToggle.addEventListener('change', handleSyncToggle);
+    elements.syncProviderSelect.addEventListener('change', handleProviderChange);
+    document.getElementById('auto-sync-toggle').addEventListener('change', handleAutoSyncToggle);
 
-    elements.toggleWorkspaceModeButton.addEventListener('click', handleStorageChange);
-    elements.showStorageInfoButton.addEventListener('click', () => api.postMessageWithResponse('showStorageInfo'));
-
-    dom.mainViewElements.settingsButton.addEventListener('click', () => navigateTo('settings'));
+    // Init tooltips
+    initTooltips();
+    
     hasInitialized = true;
 }
 
 function highlightSyncActions() {
-    const { settingsViewElements: elements } = dom;
-    const syncActionsContainer = document.getElementById('sync-actions-container');
-    const syncButtons = syncActionsContainer.querySelectorAll('.btn');
-    syncButtons.forEach(btn => {
-        btn.classList.add('highlight-animation');
-        setTimeout(() => btn.classList.remove('highlight-animation'), 2000);
-    });
+    const syncToCloudBtn = document.getElementById('sync-to-cloud-btn');
+    const syncFromCloudBtn = document.getElementById('sync-from-cloud-btn');
+    if (!syncToCloudBtn || !syncFromCloudBtn || !state.appData?.metadata?.lastModified) return;
+
+    const lastModified = new Date(state.appData.metadata.lastModified);
+    
+    if (state.appData.settings.lastSyncTimestamp) {
+        const lastSync = new Date(state.appData.settings.lastSyncTimestamp);
+        if (lastModified > lastSync) {
+            syncToCloudBtn.classList.add('highlight');
+        } else {
+            syncToCloudBtn.classList.remove('highlight');
+        }
+    } else {
+        // No sync has ever happened, so highlight upload
+        syncToCloudBtn.classList.add('highlight');
+    }
 } 

@@ -1215,3 +1215,36 @@ input[list]::-webkit-calendar-picker-indicator {
 #sync-summary-view .summary-text strong {
     color: var(--vscode-foreground);
 } 
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid var(--vscode-settings-rowHoverBackground);
+}
+
+.setting-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.setting-status {
+    font-size: 0.9em;
+    color: var(--vscode-descriptionForeground);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.setting-status.visible {
+    opacity: 1;
+}
+
+.setting-status.error {
+    color: var(--vscode-errorForeground);
+}
+
+#cloud-sync-status {
+    margin-top: 10px;
+} 

@@ -197,7 +197,9 @@ function renderSettingsStatus(status) {
             element.className = `status-badge ${statusType}`;
         }
     };
-    if (!status) return;
+    if (!status) {
+        return;
+    }
 
     const storageModeText = status.storageMode === 'workspace' ? '工作区' : '全局';
     updateBadge(dom.settingsViewElements.storageModeStatus, storageModeText, status.storageMode === 'workspace' ? 'success' : 'info');
@@ -205,8 +207,14 @@ function renderSettingsStatus(status) {
     settingsView.updateCloudSyncView(status);
 
     const isEnabled = status.cloudSync;
-    dom.settingsViewElements.syncToCloudButton.disabled = !isEnabled;
-    dom.settingsViewElements.syncFromCloudButton.disabled = !isEnabled;
+    
+    if (dom.settingsViewElements.syncToCloudButton) {
+        dom.settingsViewElements.syncToCloudButton.disabled = !isEnabled;
+    }
+    
+    if (dom.settingsViewElements.syncFromCloudButton) {
+        dom.settingsViewElements.syncFromCloudButton.disabled = !isEnabled;
+    }
 }
 
 function showToast(message, type = 'info') {
@@ -226,6 +234,19 @@ function showToast(message, type = 'info') {
     }, 4500);
 }
 
+function showSettingsSaveStatus(isSuccess, message = '已保存') {
+    // Note: The HTML id is 'auto-sync-toggle', but the status span is 'autoSyncStatus'.
+    const statusEl = document.getElementById('autoSyncStatus');
+    if (statusEl) {
+        statusEl.textContent = message;
+        statusEl.classList.toggle('error', !isSuccess);
+        statusEl.classList.add('visible');
+        setTimeout(() => {
+            statusEl.classList.remove('visible');
+        }, isSuccess ? 2000 : 5000);
+    }
+}
+
 export {
     // Navigation
     navigateTo,
@@ -241,6 +262,7 @@ export {
     showEditForm,
     renderSettingsStatus,
     showToast,
+    showSettingsSaveStatus,
     // Globals
     dom
 };

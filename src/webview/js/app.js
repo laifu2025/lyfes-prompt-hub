@@ -14,6 +14,7 @@ import { init as initTooltips } from './tooltips.js';
 export async function initialLoad() {
     try {
         const appData = await api.postMessageWithResponse('getAppData');
+        
         if (appData) {
             state.appData = appData;
             state.prompts = appData.prompts || [];

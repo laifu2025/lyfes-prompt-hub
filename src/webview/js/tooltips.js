@@ -4,5 +4,4 @@
  */
 export function init() {
     // Tooltip initialization logic can be added here in the future.
-    console.log('Tooltips initialized.');
 } 

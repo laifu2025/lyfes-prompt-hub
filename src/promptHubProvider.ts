@@ -32,6 +32,19 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
         webviewView.webview.onDidReceiveMessage(async (message) => {
+            // Legacy handler for simple settings save from old webview code
+            if (message.command === 'saveSettings') {
+                try {
+                    await this._dataManager.saveAppData(message.data);
+                    this._postMessage({ command: 'settingsSaved' });
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    this._postMessage({ command: 'settingsSaveFailed', message: errorMessage });
+                    vscode.window.showErrorMessage(`保存设置失败: ${errorMessage}`);
+                }
+                return;
+            }
+
             try {
                 await this._handleWebviewMessage(message);
             } catch (error) {
@@ -180,6 +193,13 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 break;
             }
 
+            case 'webview:setSetting': {
+                const { key, value } = payload;
+                await this._dataManager.updateSetting(key, value);
+                this._postMessage({ type: 'setSettingResponse', requestId: message.requestId, success: true });
+                break;
+            }
+
             // Storage Mode Actions
             case 'getStorageInfo': {
                 await vscode.commands.executeCommand('promptHub.showStorageInfo');
@@ -274,8 +294,8 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
     }
 
     private _getFallbackHtml(error?: any): string {
-        const message = error instanceof Error ? error.message : String(error);
-        return `<!DOCTYPE html><html lang="en"><head><title>Error</title></head><body><h1>Error loading Prompt Hub</h1><p>Details: ${message}</p></body></html>`;
+        console.error('Failed to render webview, showing fallback HTML.', error);
+        return `<!DOCTYPE html><html lang="en"><head><title>Error</title></head><body><h1>Error loading Prompt Hub</h1><p>Details: ${error instanceof Error ? error.message : String(error)}</p></body></html>`;
     }
 
     private _showNotification(message: string, type: 'info' | 'warning' | 'error' = 'info'): void {
@@ -295,19 +315,20 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
     }
 
     private showError(error: any, requestType?: string, requestId?: string): void {
-        console.error(`Error handling ${requestType || 'unknown'} request:`, error);
-
-        let errorMessage = 'An unexpected error occurred.';
-        if (error instanceof SyncError) {
-            errorMessage = `Sync Error: ${error.message}`;
-        } else if (error instanceof Error) {
-            errorMessage = error.message;
-        }
-        
+        console.error(`Error handling ${requestType || 'unknown'} request (ID: ${requestId || 'N/A'}):`, error);
+        const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : '发生未知错误');
+    
+        // Always show a native VS Code error message to the user
+        vscode.window.showErrorMessage(`操作失败: ${errorMessage}`);
+    
+        // Also send an error response to the webview if a request ID was provided
         if (requestId) {
-            this._postMessage({ type: `${requestType}Response`, requestId, success: false, error: errorMessage });
-        } else {
-            this._postMessage({ type: 'backendError', error: errorMessage });
+            this._postMessage({
+                type: `${requestType}Response`,
+                requestId,
+                success: false,
+                error: errorMessage
+            });
         }
     }
 

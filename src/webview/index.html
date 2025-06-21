@@ -122,6 +122,9 @@
                 <div class="settings-block">
                     <h3 class="settings-block-title">数据管理</h3>
                     <div class="settings-card">
+                        <!-- 隐藏的文件输入元素 -->
+                        <input type="file" id="import-file-input" accept=".json" style="display: none;">
+                        
                         <div class="data-item">
                             <span>从文件导入</span>
                             <button class="btn btn-secondary" id="import-btn">导入 .json</button>
@@ -160,6 +163,17 @@
                                 <option value="webdav">WebDAV</option>
                                 <option value="custom">Custom API</option>
                             </select>
+                        </div>
+                
+                        <div class="form-group form-group-inline hidden" id="auto-sync-container">
+                            <label for="auto-sync-toggle">自动同步</label>
+                            <div class="setting-control">
+                                <label class="switch">
+                                    <input type="checkbox" id="auto-sync-toggle">
+                                    <span class="slider round"></span>
+                                </label>
+                                <span id="autoSyncStatus" class="setting-status"></span>
+                            </div>
                         </div>
                 
                         <div id="sync-summary-view" class="settings-card hidden">
