@@ -883,7 +883,7 @@ input[list]::-webkit-calendar-picker-indicator {
 
 /* A block containing a title and a card */
 #settings-view .settings-block {
-    margin-bottom: 24px;
+    margin-bottom: calc(var(--spacing-unit) * 3);
 }
 
 /* The title above the card */
@@ -903,6 +903,8 @@ input[list]::-webkit-calendar-picker-indicator {
     border: 1px solid var(--vscode-panel-border, var(--vscode-border, rgba(128, 128, 128, 0.2)));
     border-radius: 8px;
     overflow: hidden; /* Important for border-radius on children */
+    padding: calc(var(--spacing-unit) * 2);
+    background-color: var(--vscode-input-background);
 }
 
 /* Each row inside the card */
@@ -919,7 +921,7 @@ input[list]::-webkit-calendar-picker-indicator {
 /* Remove the border from the last item in each card */
 #settings-view .settings-card .data-item:last-child {
     border-bottom: none;
-} 
+}
 
 /* =============================================
    Category Management View
@@ -1042,4 +1044,36 @@ input[list]::-webkit-calendar-picker-indicator {
     margin: 4px 0;
     overflow: hidden;
     background-color: var(--vscode-border);
+}
+
+.settings-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-unit);
+}
+
+#settings-view .settings-block-title {
+    font-size: 1.1em;
+    margin: 0;
+    color: var(--vscode-foreground);
+    font-weight: 600;
+}
+
+.provider-config {
+    padding: var(--spacing-unit) 0;
+    border-top: 1px solid var(--vscode-border);
+    margin-top: var(--spacing-unit);
+}
+
+.settings-description {
+    font-size: 0.9em;
+    color: var(--vscode-secondary-foreground);
+    margin-bottom: calc(var(--spacing-unit) * 2);
+}
+
+.settings-divider {
+    border: none;
+    border-top: 1px solid var(--vscode-border);
+    margin: calc(var(--spacing-unit) * 2) 0;
 } 

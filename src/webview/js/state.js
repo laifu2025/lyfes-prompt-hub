@@ -90,12 +90,51 @@ export const dom = {
         exportButton: document.getElementById('export-btn'),
         createBackupButton: document.getElementById('create-backup-btn'),
         restoreBackupButton: document.getElementById('restore-backup-btn'),
-        cloudSyncStatus: document.getElementById('cloud-sync-status'),
+        
+        // Old cloud sync elements (some might be removed or repurposed)
+        cloudSyncStatus: document.getElementById('cloud-sync-status'), // This might be removed
+        setupCloudSyncButton: document.getElementById('setup-cloud-sync-btn'), // This is now removed
+
+        // New Cloud Sync UI Elements
+        cloudSyncEnabledToggle: document.getElementById('cloud-sync-enabled-toggle'),
+        cloudSyncConfigContainer: document.getElementById('cloud-sync-config-container'),
+        syncProviderSelect: document.getElementById('sync-provider-select'),
+        
+        githubConfig: {
+            container: document.getElementById('github-config'),
+            token: document.getElementById('github-token'),
+            gistId: document.getElementById('github-gist-id'),
+        },
+        giteeConfig: {
+            container: document.getElementById('gitee-config'),
+            token: document.getElementById('gitee-token'),
+            gistId: document.getElementById('gitee-gist-id'),
+        },
+        gitlabConfig: {
+            container: document.getElementById('gitlab-config'),
+            url: document.getElementById('gitlab-url'),
+            token: document.getElementById('gitlab-token'),
+            snippetId: document.getElementById('gitlab-snippet-id'),
+        },
+        webdavConfig: {
+            container: document.getElementById('webdav-config'),
+            url: document.getElementById('webdav-url'),
+            username: document.getElementById('webdav-username'),
+            password: document.getElementById('webdav-password'),
+        },
+        customConfig: {
+            container: document.getElementById('custom-config'),
+            url: document.getElementById('custom-api-url'),
+            apiKey: document.getElementById('custom-api-key'),
+        },
+
+        saveSyncSettingsButton: document.getElementById('save-sync-settings-btn'),
+        syncToCloudButton: document.getElementById('sync-to-cloud-btn'),
+        syncFromCloudButton: document.getElementById('sync-from-cloud-btn'),
+        
+        // Storage Mode
         storageModeStatus: document.getElementById('storage-mode-status'),
         toggleWorkspaceModeButton: document.getElementById('toggle-workspace-mode-btn'),
         showStorageInfoButton: document.getElementById('show-storage-info-btn'),
-        setupCloudSyncButton: document.getElementById('setup-cloud-sync-btn'),
-        syncToCloudButton: document.getElementById('sync-to-cloud-btn'),
-        syncFromCloudButton: document.getElementById('sync-from-cloud-btn'),
     },
 };

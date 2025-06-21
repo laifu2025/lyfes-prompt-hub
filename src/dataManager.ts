@@ -466,6 +466,89 @@ export class DataManager {
         }
     }
 
+    public async saveCloudSyncSettings(settings: any): Promise<AppData> {
+        const appData = await this.getAppData();
+
+        // Reset previous provider's secrets if provider changes
+        if (appData.settings.syncProvider && appData.settings.syncProvider !== settings.provider) {
+            await this.clearProviderSecrets(appData.settings.syncProvider);
+        }
+
+        appData.settings.syncProvider = settings.provider;
+
+        switch (settings.provider) {
+            case 'github':
+                if (!settings.token) { throw new Error('GitHub Token is required.'); }
+                await this.context.secrets.store(DataManager.STORAGE_KEYS.GITHUB_TOKEN, settings.token);
+                appData.settings.gistId = settings.gistId || undefined;
+                break;
+            
+            case 'gitee':
+                if (!settings.token) { throw new Error('Gitee Token is required.'); }
+                await this.context.secrets.store(DataManager.STORAGE_KEYS.GITEE_TOKEN, settings.token);
+                appData.settings.gistId = settings.gistId || undefined;
+                break;
+
+            case 'gitlab':
+                if (!settings.token) { throw new Error('GitLab Token is required.'); }
+                await this.context.secrets.store(DataManager.STORAGE_KEYS.GITLAB_TOKEN, settings.token);
+                appData.settings.gitlabUrl = settings.gitlabUrl || undefined;
+                appData.settings.gistId = settings.gistId || undefined;
+                break;
+
+            case 'webdav':
+                if (!settings.webdavUrl || !settings.webdavUsername || !settings.webdavPassword) {
+                    throw new Error('WebDAV URL, username, and password are required.');
+                }
+                // Validate WebDAV credentials
+                try {
+                    await axios({
+                        method: 'OPTIONS',
+                        url: settings.webdavUrl,
+                        auth: { username: settings.webdavUsername, password: settings.webdavPassword },
+                        timeout: 10000,
+                    } as any);
+                } catch (error: any) {
+                    let message = '请检查网络连接或服务器URL。';
+                    if (error.response?.status === 401) {
+                        message = '凭据无效（用户名或密码错误）。';
+                    } else if (error.message) {
+                        message = error.message;
+                    }
+                    throw new Error(`WebDAV 验证失败: ${message}`);
+                }
+                await this.context.secrets.store(DataManager.STORAGE_KEYS.WEBDAV_PASSWORD, settings.webdavPassword);
+                appData.settings.webdavUrl = settings.webdavUrl;
+                appData.settings.webdavUsername = settings.webdavUsername;
+                break;
+
+            case 'custom':
+                if (!settings.customApiUrl || !settings.apiKey) {
+                    throw new Error('Custom API URL and API Key are required.');
+                }
+                await this.context.secrets.store(DataManager.STORAGE_KEYS.CUSTOM_API_KEY, settings.apiKey);
+                appData.settings.customApiUrl = settings.customApiUrl;
+                break;
+
+            default:
+                throw new Error('Invalid sync provider specified.');
+        }
+
+        appData.settings.cloudSync = true;
+        await this.saveAppData(appData);
+        return appData;
+    }
+
+    private async clearProviderSecrets(provider: string) {
+        switch (provider) {
+            case 'github': await this.context.secrets.delete(DataManager.STORAGE_KEYS.GITHUB_TOKEN); break;
+            case 'gitee': await this.context.secrets.delete(DataManager.STORAGE_KEYS.GITEE_TOKEN); break;
+            case 'gitlab': await this.context.secrets.delete(DataManager.STORAGE_KEYS.GITLAB_TOKEN); break;
+            case 'webdav': await this.context.secrets.delete(DataManager.STORAGE_KEYS.WEBDAV_PASSWORD); break;
+            case 'custom': await this.context.secrets.delete(DataManager.STORAGE_KEYS.CUSTOM_API_KEY); break;
+        }
+    }
+
     private async setupGitHubSync(): Promise<AppData | void> {
         const token = await vscode.window.showInputBox({ prompt: '输入你的GitHub Personal Access Token (需要gist权限)', password: true, ignoreFocusOut: true });
         if (!token) { return; }
@@ -713,7 +796,7 @@ export class DataManager {
         return appData;
     }
     
-    private async disableCloudSync(): Promise<AppData | void> {
+    public async disableCloudSync(): Promise<AppData | void> {
             const appData = await this.getAppData();
             appData.settings.cloudSync = false;
             appData.settings.syncProvider = null;

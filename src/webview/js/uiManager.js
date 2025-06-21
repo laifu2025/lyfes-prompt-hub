@@ -1,6 +1,8 @@
 import { state, dom } from './state.js';
 import * as categoryView from './views/categoryView.js';
 import * as editView from './views/editView.js';
+import * as filterView from './views/filterView.js';
+import * as settingsView from './views/settingsView.js';
 
 // --- Navigation ---
 
@@ -51,10 +53,7 @@ export function renderAll() {
     updateFilterView();
     categoryView.render();
     if (state.appData && state.appData.settings) {
-        renderSettingsStatus({
-            storageMode: state.appData.settings.workspaceMode ? 'workspace' : 'global',
-            cloudSync: { status: state.appData.settings.cloudSync ? '已启用' : '未配置' }
-        });
+        renderSettingsStatus(state.appData.settings);
     }
 }
 
@@ -199,17 +198,12 @@ export function renderSettingsStatus(status) {
     const storageModeText = status.storageMode === 'workspace' ? '工作区' : '全局';
     updateBadge(dom.settingsViewElements.storageModeStatus, storageModeText, status.storageMode === 'workspace' ? 'success' : 'info');
     
-    if (status.cloudSync) {
-        const syncStatusText = status.cloudSync.status;
-        const isEnabled = syncStatusText.includes('已配置') || syncStatusText.includes('已启用');
-        const syncStatusType = isEnabled ? 'success' : 'error';
-        updateBadge(dom.settingsViewElements.cloudSyncStatus, syncStatusText, syncStatusType);
+    settingsView.updateCloudSyncView(status);
 
-        dom.settingsViewElements.syncToCloudButton.disabled = !isEnabled;
-        dom.settingsViewElements.syncFromCloudButton.disabled = !isEnabled;
-    }
+    const isEnabled = status.cloudSync;
+    dom.settingsViewElements.syncToCloudButton.disabled = !isEnabled;
+    dom.settingsViewElements.syncFromCloudButton.disabled = !isEnabled;
 }
-
 
 // --- Toasts (Notifications) ---
 let toastQueue = [];
@@ -222,7 +216,7 @@ function createToastContainer() {
     return container;
 }
 
-export function showToast(message, type = 'success', duration = 3000) {
+export function showToast(message, type = 'info', duration = 3000) {
     const toastContainer = document.getElementById('toast-container') || createToastContainer();
     
     const toast = document.createElement('div');

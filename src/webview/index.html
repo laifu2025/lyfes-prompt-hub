@@ -141,23 +141,112 @@
                 </div>
 
                 <div class="settings-block">
-                    <h3 class="settings-block-title">云同步</h3>
-                    <div class="settings-card">
-                        <div class="data-item">
-                            <span>云同步状态</span>
-                            <span class="status-badge info" id="cloud-sync-status">未知</span>
+                    <div class="settings-block-header">
+                        <h3 class="settings-block-title">云同步</h3>
+                        <label class="switch">
+                            <input type="checkbox" id="cloud-sync-enabled-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    <div id="cloud-sync-config-container" class="settings-card hidden">
+                        <div class="form-group">
+                            <label for="sync-provider-select">同步服务商</label>
+                            <select id="sync-provider-select" class="input-field">
+                                <option value="disabled">-- 请选择 --</option>
+                                <option value="github">GitHub Gist</option>
+                                <option value="gitee">Gitee Gist</option>
+                                <option value="gitlab">GitLab Snippets</option>
+                                <option value="webdav">WebDAV</option>
+                                <option value="custom">Custom API</option>
+                            </select>
                         </div>
-                        <div class="data-item">
-                            <span>设置云同步</span>
-                            <button class="btn btn-secondary" id="setup-cloud-sync-btn">配置同步</button>
+                
+                        <!-- GitHub Config -->
+                        <div id="github-config" class="provider-config hidden">
+                            <p class="settings-description">通过私人 GitHub Gist 同步您的数据。需要一个有 `gist` 范围权限的 Personal Access Token。</p>
+                            <div class="form-group">
+                                <label for="github-token">GitHub Token</label>
+                                <input type="password" id="github-token" class="input-field" placeholder="粘贴您的 Personal Access Token">
+                            </div>
+                            <div class="form-group">
+                                <label for="github-gist-id">Gist ID (可选)</label>
+                                <input type="text" id="github-gist-id" class="input-field" placeholder="关联已有的 Gist">
+                            </div>
                         </div>
-                         <div class="data-item">
+                
+                        <!-- Gitee Config -->
+                        <div id="gitee-config" class="provider-config hidden">
+                             <p class="settings-description">通过 Gitee Gist 同步。需要一个有 `gists` 权限的 Personal Access Token。</p>
+                            <div class="form-group">
+                                <label for="gitee-token">Gitee Token</label>
+                                <input type="password" id="gitee-token" class="input-field" placeholder="粘贴您的 Personal Access Token">
+                            </div>
+                            <div class="form-group">
+                                <label for="gitee-gist-id">Gist ID (可选)</label>
+                                <input type="text" id="gitee-gist-id" class="input-field" placeholder="关联已有的 Gist">
+                            </div>
+                        </div>
+                        
+                        <!-- GitLab Config -->
+                        <div id="gitlab-config" class="provider-config hidden">
+                            <p class="settings-description">通过 GitLab Snippet 同步。如果使用自建实例，请提供实例 URL。Token 需要 `api` 权限。</p>
+                            <div class="form-group">
+                                <label for="gitlab-url">GitLab URL (可选)</label>
+                                <input type="text" id="gitlab-url" class="input-field" placeholder="自建 GitLab 地址, 默认为 gitlab.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="gitlab-token">GitLab Token</label>
+                                <input type="password" id="gitlab-token" class="input-field" placeholder="粘贴您的 Personal Access Token">
+                            </div>
+                            <div class="form-group">
+                                <label for="gitlab-snippet-id">Snippet ID (可选)</label>
+                                <input type="text" id="gitlab-snippet-id" class="input-field" placeholder="关联已有的 Snippet">
+                            </div>
+                        </div>
+                
+                        <!-- WebDAV Config -->
+                        <div id="webdav-config" class="provider-config hidden">
+                            <p class="settings-description">通过 WebDAV 服务器同步。请确保您填写的 URL、用户名和密码正确无误。</p>
+                            <div class="form-group">
+                                <label for="webdav-url">WebDAV URL</label>
+                                <input type="text" id="webdav-url" class="input-field" placeholder="例如: https://dav.example.com/remote.php/dav/files/user">
+                            </div>
+                            <div class="form-group">
+                                <label for="webdav-username">WebDAV 用户名</label>
+                                <input type="text" id="webdav-username" class="input-field">
+                            </div>
+                            <div class="form-group">
+                                <label for="webdav-password">WebDAV 密码</label>
+                                <input type="password" id="webdav-password" class="input-field">
+                            </div>
+                        </div>
+                
+                        <!-- Custom API Config -->
+                        <div id="custom-config" class="provider-config hidden">
+                            <p class="settings-description">通过您自己的 API 端点进行同步。端点需要支持 GET 和 POST (或 PUT) 请求。</p>
+                            <div class="form-group">
+                                <label for="custom-api-url">API URL</label>
+                                <input type="text" id="custom-api-url" class="input-field" placeholder="支持 GET/POST 的端点">
+                            </div>
+                            <div class="form-group">
+                                <label for="custom-api-key">API Key</label>
+                                <input type="password" id="custom-api-key" class="input-field" placeholder="作为 Bearer Token 发送">
+                            </div>
+                        </div>
+                
+                        <div class="form-actions">
+                            <button id="save-sync-settings-btn" class="btn btn-primary">保存并验证</button>
+                        </div>
+                
+                        <hr class="settings-divider">
+                
+                        <div class="data-item">
                             <span>同步到云端</span>
-                            <button class="btn btn-secondary" id="sync-to-cloud-btn" disabled>上传</button>
+                            <button class="btn btn-secondary" id="sync-to-cloud-btn">上传</button>
                         </div>
-                         <div class="data-item">
+                        <div class="data-item">
                             <span>从云端同步</span>
-                            <button class="btn btn-secondary" id="sync-from-cloud-btn" disabled>下载</button>
+                            <button class="btn btn-secondary" id="sync-from-cloud-btn">下载</button>
                         </div>
                     </div>
                 </div>
