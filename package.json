@@ -5,7 +5,7 @@
   "version": "1.6.1",
   "publisher": "Lyfe",
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.74.0"
   },
   "categories": [
     "Other"
@@ -16,7 +16,7 @@
   "activationEvents": [
     "onView:promptHubView"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -185,8 +185,8 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && cpx \"src/webview/**/*.{html,css,js}\" out/webview",
-    "watch": "tsc -watch -p ./",
+    "compile": "node esbuild.mjs && cpx \"src/webview/**/*.{html,css,js}\" dist/webview",
+    "watch": "node esbuild.mjs --watch",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
@@ -201,6 +201,7 @@
     "@vscode/test-electron": "^2.2.0",
     "axios": "^1.10.0",
     "cpx": "^1.5.0",
+    "esbuild": "^0.21.5",
     "eslint": "^8.28.0",
     "typescript": "^4.9.4",
     "vsce": "^2.15.0"
