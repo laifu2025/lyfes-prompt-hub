@@ -26,7 +26,7 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.options = {
             enableScripts: true,
-            localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'out')]
+            localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'dist')]
         };
 
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
@@ -235,10 +235,10 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview): string {
-        const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'index.html');
+        const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'index.html');
     
-        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'js', 'app.js'));
-        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'out', 'webview', 'style.css'));
+        const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'js', 'app.js'));
+        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'style.css'));
     
         try {
             let htmlContent = fs.readFileSync(htmlPath.fsPath, 'utf8');
