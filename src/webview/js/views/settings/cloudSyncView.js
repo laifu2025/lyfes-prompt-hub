@@ -274,25 +274,6 @@ function handleSyncFromCloud() {
 }
 
 /**
- * 重置云同步设置
- */
-function handleResetCloudSync() {
-    if (confirm('确定要重置云同步设置吗？\n\n这将：\n• 关闭云同步功能\n• 清除所有保存的Token和密码\n• 重置所有云同步相关配置\n\n此操作不可撤销！')) {
-        api.postMessageWithResponse('webview:resetCloudSync')
-            .then(result => {
-                if (result.success) {
-                    // 成功通知已由后端处理为原生VS Code通知
-                    console.log('云同步设置已重置');
-                }
-            })
-            .catch(err => {
-                api.showNotification(`重置失败: ${err.message}`, 'error');
-                console.error('重置云同步设置失败:', err);
-            });
-    }
-}
-
-/**
  * 处理自动同步开关切换
  * @param {Event} event - 事件对象
  */

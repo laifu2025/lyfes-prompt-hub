@@ -19,11 +19,44 @@ function renderAvailableTags() {
     container.classList.toggle('hidden', available.length === 0);
 }
 
-function handleAvailableTagClick(e) {
-    if (e.target.classList.contains('available-tag')) {
-        const tag = e.target.dataset.tag;
-        if (tag && !state.currentTags.includes(tag)) {
-            state.currentTags.push(tag);
+async function handleAllTagsContainerClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.target.classList.contains('delete-tag')) {
+        const tagToDelete = e.target.dataset.tag;
+        if (!tagToDelete) return;
+
+        try {
+            // 使用VS Code确认对话框而不是原生confirm()
+            const confirmed = await api.showConfirmation(`确定要从所有 Prompts 中永久删除标签 '${tagToDelete}' 吗？\n\n此操作无法撤销。`);
+            if (!confirmed) {
+                return;
+            }
+
+            // 执行删除操作
+            await api.postMessageWithResponse('deleteTag', { tag: tagToDelete });
+            api.showToast(`标签 '${tagToDelete}' 已被永久删除。`, 'success');
+
+            // 重新加载标签列表
+            await loadAllTags();
+            
+            // 从当前编辑的标签中移除（如果存在）
+            state.currentTags = state.currentTags.filter(tag => tag !== tagToDelete);
+            allTagsCache = allTagsCache.filter(tag => tag !== tagToDelete);
+            renderTags();
+            renderAvailableTags();
+            refreshCallback(); // Refresh the full view
+
+        } catch (err) {
+            console.error('删除标签失败:', err);
+            api.showToast(`删除标签失败: ${err.message || err}`, 'error');
+        }
+    } else if (e.target.classList.contains('add-tag')) {
+        // 添加标签功能
+        const tagToAdd = e.target.dataset.tag;
+        if (tagToAdd && !state.currentTags.includes(tagToAdd)) {
+            state.currentTags.push(tagToAdd);
             renderTags();
             renderAvailableTags();
         }
@@ -58,29 +91,6 @@ function handleFormSubmit(event) {
         });
 }
 
-function handleDelete() {
-    if (!state.editingPromptId) return;
-
-    api.postMessageWithResponse('showConfirmation', { message: '确定要删除这个 Prompt 吗？此操作无法撤销。' })
-        .then(result => {
-            if (result.confirmed) {
-                return api.postMessageWithResponse('deletePrompt', { id: state.editingPromptId });
-            }
-            return Promise.reject('取消删除');
-        })
-        .then(() => {
-            refreshCallback();
-            goBack();
-            api.showToast('删除成功!');
-        })
-        .catch(err => {
-            if (err !== '取消删除') {
-                console.error('Delete failed:', err);
-                api.showToast(`删除失败: ${err.message || err}`, 'error');
-            }
-        });
-}
-
 function handleTagInput(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
@@ -104,36 +114,6 @@ function handleTagPillRemove(e) {
         state.currentTags = state.currentTags.filter(tag => tag !== tagToRemove);
         renderTags();
         renderAvailableTags();
-    }
-}
-
-function handleTagPillDelete(e) {
-    const deleteButton = e.target.closest('.tag-remove-btn.permanent-delete');
-    if (deleteButton) {
-        const tagToDelete = deleteButton.dataset.tag;
-        
-        api.postMessageWithResponse('showConfirmation', { message: `确定要从所有 Prompts 中永久删除标签 '${tagToDelete}' 吗？\n\n此操作无法撤销。` })
-            .then(result => {
-                if (result.confirmed) {
-                    return api.postMessageWithResponse('deleteTag', { name: tagToDelete });
-                }
-                return Promise.reject('取消删除');
-            })
-            .then(() => {
-                api.showToast(`标签 '${tagToDelete}' 已被永久删除。`, 'success');
-                // Remove from current view
-                state.currentTags = state.currentTags.filter(tag => tag !== tagToDelete);
-                allTagsCache = allTagsCache.filter(tag => tag !== tagToDelete);
-                renderTags();
-                renderAvailableTags();
-                // Optionally, trigger a full refresh if other parts of the app need to know
-                refreshCallback(true);
-            })
-            .catch(err => {
-                if (err !== '取消删除') {
-                    api.showToast(`删除标签失败: ${err.message || err}`, 'error');
-                }
-            });
     }
 }
 
@@ -167,13 +147,11 @@ export function init(refreshFunc) {
     const { editViewElements: elements } = dom;
 
     elements.form.addEventListener('submit', handleFormSubmit);
-    elements.deleteButton.addEventListener('click', handleDelete);
     elements.cancelButton.addEventListener('click', goBack);
     elements.tagsInput.addEventListener('keydown', handleTagInput);
     
     dom.tagPillsContainer.addEventListener('click', handleTagPillRemove);
-    elements.allTagsContainer.addEventListener('click', handleTagPillDelete);
-    elements.allTagsContainer.addEventListener('click', handleAvailableTagClick);
+    elements.allTagsContainer.addEventListener('click', handleAllTagsContainerClick);
     document.addEventListener('click', handleCategoryDropdownInteraction);
 
     api.postMessageWithResponse('getAllTags')

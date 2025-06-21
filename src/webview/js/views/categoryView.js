@@ -49,22 +49,22 @@ function handleAddCategory() {
     newItem.querySelector('.category-input').focus();
 }
 
-function handleDeleteCategory(name) {
-    api.postMessageWithResponse('showConfirmation', { message: `确定要删除分类 "${name}" 吗？` })
-        .then(result => {
-            if (result.confirmed) {
-                return api.postMessageWithResponse('deleteCategory', { name });
-            }
-            return Promise.reject('取消删除');
-        }).then(() => {
-            api.showToast('分类已删除', 'success');
-            refreshCallback();
-        }).catch(err => {
-            if (err !== '取消删除') {
-                const errorMessage = err.message || '删除失败';
-                api.showToast(errorMessage, 'error');
-            }
-        });
+async function handleDeleteCategory(id, name) {
+    try {
+        // 使用VS Code确认对话框而不是原生confirm()
+        const confirmed = await api.showConfirmation(`确定要删除分类 "${name}" 吗？`);
+        if (!confirmed) {
+            return;
+        }
+
+        await api.postMessageWithResponse('deleteCategory', { id });
+        api.showToast('分类已删除', 'success');
+        this.loadCategories();
+    } catch (error) {
+        console.error('删除分类失败:', error);
+        const errorMessage = error.message || '删除分类失败';
+        api.showToast(errorMessage, 'error');
+    }
 }
 
 function toggleEditMode(item, isEditing) {
@@ -87,7 +87,7 @@ function toggleEditMode(item, isEditing) {
     }
 }
 
-function handleCategoryListClick(e) {
+async function handleCategoryListClick(e) {
     const item = e.target.closest('.category-manage-item');
     if (!item) return;
 
@@ -145,7 +145,7 @@ function handleCategoryListClick(e) {
             item.remove();
             return;
         }
-        handleDeleteCategory(originalName);
+        await handleDeleteCategory(item.dataset.id, originalName);
     }
 }
 

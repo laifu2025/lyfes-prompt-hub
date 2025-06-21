@@ -1075,6 +1075,10 @@ input[list]::-webkit-calendar-picker-indicator {
     margin-bottom: calc(var(--spacing-unit) * 2);
 }
 
+.danger-warning {
+    color: var(--vscode-errorForeground, #f44747) !important;
+}
+
 .settings-divider {
     border: none;
     border-top: 1px solid var(--vscode-border);

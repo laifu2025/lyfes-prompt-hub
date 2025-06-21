@@ -1,5 +1,6 @@
 import { state, dom } from './state.js';
 import { postMessageWithResponse } from './api.js';
+import * as api from './api.js';
 import * as ui from './uiManager.js';
 
 // A helper function for data-related actions
@@ -54,27 +55,34 @@ async function handleSavePrompt(e) {
     });
 }
 
-async function handleDeletePrompt() {
-    if (!state.editingPromptId) { return; }
+async function handleDeletePrompt(e) {
+    e.preventDefault(); // 阻止任何默认行为
+    e.stopPropagation(); // 阻止事件冒泡
+
+    const promptId = state.editingPromptId || dom.editViewElements.idInput.value;
+
+    if (!promptId) {
+        ui.showToast('无法获取要删除的 Prompt ID', 'error');
+        return;
+    }
 
     try {
-        const response = await postMessageWithResponse('deletePrompt', { id: state.editingPromptId });
-
-        if (response.success) {
-            postMessageWithResponse('showNotification', { message: 'Prompt 已删除！', type: 'info' });
-    
-    ui.goBack();
-    // Request a full data refresh
-            postMessageWithResponse('getAppData').then(refreshResponse => {
-                state.appData = refreshResponse.data;
-                state.prompts = refreshResponse.data.prompts;
-        ui.renderAll();
-    });
+        // 使用VS Code确认对话框而不是原生confirm()
+        const confirmed = await api.showConfirmation('确定要删除这个 Prompt 吗？此操作无法撤销。');
+        if (!confirmed) {
+            return;
         }
-        // If response.success is false (user cancelled), do nothing.
-    } catch (err) {
-        console.error('Delete prompt failed:', err);
-        postMessageWithResponse('showNotification', { message: err.message || '删除失败，请重试', type: 'error' });
+
+        // 删除Prompt
+        await postMessageWithResponse('deletePrompt', { id: parseInt(promptId, 10) });
+        
+        // 显示成功消息并返回主视图
+        postMessageWithResponse('showNotification', { message: 'Prompt 已删除!', type: 'info' });
+        ui.goBack();
+        ui.renderAll();
+    } catch (error) {
+        console.error('删除 Prompt 失败:', error);
+        ui.showToast(`删除失败: ${error.message}`, 'error');
     }
 }
 
@@ -175,17 +183,8 @@ export function initEventListeners() {
         }
         
         // --- Category Management View ---
-        if (target.closest('#add-new-category-btn')) {
-            // Logic to add a new category will be handled here
-        }
-        const editCategoryBtn = target.closest('.category-actions .btn-edit');
-        if (editCategoryBtn) {
-            // Logic for editing a category name
-        }
-        const deleteCategoryBtn = target.closest('.category-actions .btn-delete');
-        if (deleteCategoryBtn) {
-            // Logic for deleting a category
-        }
+        // 分类管理的事件处理已在 categoryView.js 中完整实现
+        // 移除这里的空处理器以避免事件冲突
     });
 
     // Direct event listeners for non-dynamic elements
@@ -264,8 +263,6 @@ export function initEventListeners() {
             'create-backup-btn': () => handleDataAction('createBackup', { success: '备份创建成功！', error: '备份失败' }),
             'restore-backup-btn': () => handleDataAction('restoreBackup', { success: '备份恢复成功！', error: '恢复失败' }),
             'setup-cloud-sync-btn': () => postMessageWithResponse('setupCloudSync'),
-            'sync-to-cloud-btn': () => handleDataAction('syncToCloud', { success: '同步到云端成功！', error: '同步失败' }),
-            'sync-from-cloud-btn': () => handleDataAction('syncFromCloud', { success: '从云端同步成功！', error: '同步失败' }),
             'show-storage-info-btn': () => postMessageWithResponse('getStorageInfo'),
             'toggle-workspace-mode-btn': () => postMessageWithResponse('toggleWorkspaceMode'),
         };

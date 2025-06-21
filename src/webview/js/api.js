@@ -72,8 +72,10 @@ export const showToast = showNotification;
  * @param {string} message 确认消息
  * @returns {Promise<boolean>} 用户是否确认
  */
-export function showConfirmation(message) {
-    return postMessageWithResponse('showConfirmation', { message });
+export async function showConfirmation(message) {
+    const response = await postMessageWithResponse('showConfirmation', { message });
+    // 后端返回的数据结构中，confirmed字段可能在response.confirmed或response.data.confirmed
+    return response.confirmed !== undefined ? response.confirmed : response.data?.confirmed;
 }
 
 /**

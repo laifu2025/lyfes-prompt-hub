@@ -82,9 +82,8 @@ export function init() {
         elements.toggleWorkspaceModeButton.addEventListener('click', handleToggleWorkspaceMode);
     }
     
-    if (elements.showStorageInfoButton) {
-        elements.showStorageInfoButton.addEventListener('click', handleShowStorageInfo);
-    }
+    // show-storage-info-btn 事件绑定已在 eventHandlers.js 中全局处理
+    // 移除重复绑定以避免冲突
     
     isInitialized = true;
     console.log('存储管理模块已初始化');

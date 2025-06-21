@@ -334,7 +334,7 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
             
             const cspSource = webview.cspSource;
             htmlContent = htmlContent
-                .replace(/__CSP_SOURCE__/g, `default-src 'none'; style-src ${cspSource} 'unsafe-inline' https://*.vscode-cdn.net; font-src ${cspSource} https://*.vscode-cdn.net; script-src 'nonce-${nonce}'; img-src ${cspSource} https:; connect-src ${cspSource};`)
+                .replace(/__CSP_SOURCE__/g, `default-src 'none'; style-src ${cspSource} 'unsafe-inline' https://*.vscode-cdn.net; font-src ${cspSource} https://*.vscode-cdn.net; script-src 'nonce-${nonce}'; img-src ${cspSource} https:; connect-src ${cspSource}; sandbox allow-same-origin allow-scripts allow-modals;`)
                 .replace(/__NONCE__/g, nonce)
                 .replace(/__STYLE_URI__/g, styleUri.toString())
                 .replace(/__SCRIPT_URI__/g, scriptUri.toString());
@@ -363,8 +363,15 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
     }
 
     private async _showConfirmationDialog(message: string): Promise<boolean> {
-        const result = await vscode.window.showWarningMessage(message, { modal: true }, 'Confirm');
-        return result === 'Confirm';
+        // 使用showInformationMessage避免默认取消按钮的问题
+        // 明确提供"确认"和"取消"两个选项
+        const result = await vscode.window.showInformationMessage(
+            message, 
+            { modal: true }, 
+            '确认', 
+            '取消'
+        );
+        return result === '确认';
     }
 
     private showError(error: any, requestType?: string, requestId?: string): void {
