@@ -27,7 +27,7 @@ export function initializeApiListener() {
             const { resolve, reject, type: requestType } = state.pendingRequests.get(requestId);
             state.pendingRequests.delete(requestId);
             if (response.success === false || message.success === false) {
-                const errorMsg = response.error || response.message || `操作 '${requestType}' 失败`;
+                const errorMsg = (response.data && response.data.error) || response.error || response.message || `操作 '${requestType}' 失败`;
                 console.error(`Request ${requestType} (${requestId}) failed:`, errorMsg);
                 reject(new Error(errorMsg));
             } else {

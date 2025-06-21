@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import { DataManager } from './dataManager';
+import { DataManager, SyncError } from './dataManager';
 
 export class PromptHubProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'promptHubView';
@@ -35,7 +35,7 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
             try {
                 await this._handleWebviewMessage(message);
             } catch (error) {
-                this.showError(error, message.requestId);
+                this.showError(error, message.type, message.requestId);
             }
         });
     }
@@ -144,13 +144,9 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 break;
             }
             case 'webview:saveCloudSyncSettings': {
-                try {
-                    await this._dataManager.saveCloudSyncSettings(message.payload);
-                    this.refresh(); // Refresh the view to show updated state
-                    this._postMessage({ type: 'saveCloudSyncSettingsResponse', requestId: message.requestId, success: true, data: { success: true } });
-                } catch (error: any) {
-                    this._postMessage({ type: 'saveCloudSyncSettingsResponse', requestId: message.requestId, success: false, data: { success: false, error: error.message } });
-                }
+                await this._dataManager.saveCloudSyncSettings(message.payload);
+                this.refresh(); // Refresh the view to show updated state
+                this._postMessage({ type: 'saveCloudSyncSettingsResponse', requestId: message.requestId, success: true, data: { success: true } });
                 break;
             }
             case 'webview:disableCloudSync': {
@@ -274,18 +270,33 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
     }
 
     private async _showConfirmationDialog(message: string): Promise<boolean> {
-        const result = await vscode.window.showWarningMessage(message, { modal: true }, '确认');
-        return result === '确认';
+        const choice = await vscode.window.showWarningMessage(message, { modal: true }, '确认', '取消');
+        return choice === '确认';
     }
 
-    private showError(error: any, requestId?: string): void {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error('Error handling webview message:', error);
+    private showError(error: any, requestType?: string, requestId?: string): void {
+        console.error(`Error handling '${requestType}':`, error);
+
+        let errorMessage = '发生未知错误。';
+        if (error instanceof SyncError) {
+            errorMessage = error.message; 
+        } else if (error instanceof Error) {
+            errorMessage = error.message;
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        }
         
-        // Post the specific error message back to the webview
-        this._postMessage({ type: 'error', requestId, message: errorMessage });
-        
-        // Also show a generic notification in the VS Code window itself, but the webview gets the detail.
-        this._showNotification(`操作失败: ${errorMessage}`, 'error');
+        // For specific requests from the webview, post the error back
+        if (requestId && requestType) {
+            const responseType = requestType.replace('webview:', '') + 'Response';
+            this._postMessage({ type: responseType, requestId: requestId, success: false, error: errorMessage });
+        } else {
+             // For general errors or commands, show a global error message
+            vscode.window.showErrorMessage(errorMessage);
+        }
+    }
+
+    public dispose(): void {
+        // Clean up resources if needed
     }
 }

@@ -1,11 +1,11 @@
 {
   "name": "lyfes-prompt-hub",
   "displayName": "Lyfe's Prompt Hub",
-  "description": "A personal prompt management tool designed to run within VS Code, offering fast, local, and private storage for your prompts.",
-  "version": "1.7.6",
+  "description": "A local-first, powerful prompt management tool that helps you efficiently organize, create, and reuse prompts.",
+  "version": "1.9.7",
   "publisher": "Lyfe",
   "engines": {
-    "vscode": "^1.74.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
     "Other"
@@ -197,7 +197,6 @@
     "package": "vsce package"
   },
   "devDependencies": {
-    "@types/axios": "^0.9.36",
     "@types/node": "16.x",
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
@@ -216,5 +215,7 @@
   },
   "author": "Lyfe",
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {
+    "webdav": "^5.4.0"
+  }
 }
