@@ -99,6 +99,7 @@ function handleSyncToggle(event) {
 }
 
 function handleSaveSyncSettings() {
+    console.log('handleSaveSyncSettings called');
     const { settingsViewElements: elements } = dom;
     const provider = elements.syncProviderSelect.value;
     if (provider === 'disabled') {

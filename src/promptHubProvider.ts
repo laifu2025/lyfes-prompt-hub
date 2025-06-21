@@ -145,7 +145,7 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
             }
             case 'webview:saveCloudSyncSettings': {
                 try {
-                    await this._dataManager.saveCloudSyncSettings(message.data);
+                    await this._dataManager.saveCloudSyncSettings(message.payload);
                     this.refresh(); // Refresh the view to show updated state
                     this._postMessage({ type: 'saveCloudSyncSettingsResponse', requestId: message.requestId, success: true, data: { success: true } });
                 } catch (error: any) {
