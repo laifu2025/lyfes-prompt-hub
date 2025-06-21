@@ -1,5 +1,5 @@
 import { dom, state } from '../state.js';
-import { goBack, showToast, renderTags, renderCategoryDropdown } from '../uiManager.js';
+import { goBack, renderTags, renderCategoryDropdown } from '../uiManager.js';
 import * as api from '../api.js';
 
 let allTagsCache = [];
@@ -48,12 +48,13 @@ function handleFormSubmit(event) {
 
     api.postMessageWithResponse('savePrompt', { prompt: promptData })
         .then(() => {
-            showToast('保存成功!');
-            goBack();
             refreshCallback();
+            goBack();
+            api.showToast('保存成功!');
         })
         .catch(err => {
-            showToast(`保存失败: ${err.message}`, 'error');
+            console.error('Save failed:', err);
+            api.showToast(`保存失败: ${err.message}`, 'error');
         });
 }
 
@@ -67,16 +68,15 @@ function handleDelete() {
             }
             return Promise.reject('取消删除');
         })
-        .then((response) => {
-            if (response && response.success) {
-                showToast('删除成功!');
-                goBack();
-                refreshCallback();
-            }
+        .then(() => {
+            refreshCallback();
+            goBack();
+            api.showToast('删除成功!');
         })
         .catch(err => {
             if (err !== '取消删除') {
-                 showToast(`删除失败: ${err.message || err}`, 'error');
+                console.error('Delete failed:', err);
+                api.showToast(`删除失败: ${err.message || err}`, 'error');
             }
         });
 }
@@ -120,18 +120,18 @@ function handleTagPillDelete(e) {
                 return Promise.reject('取消删除');
             })
             .then(() => {
-                showToast(`标签 '${tagToDelete}' 已被永久删除。`, 'success');
+                api.showToast(`标签 '${tagToDelete}' 已被永久删除。`, 'success');
                 // Remove from current view
                 state.currentTags = state.currentTags.filter(tag => tag !== tagToDelete);
                 allTagsCache = allTagsCache.filter(tag => tag !== tagToDelete);
                 renderTags();
                 renderAvailableTags();
                 // Optionally, trigger a full refresh if other parts of the app need to know
-                refreshCallback();
+                refreshCallback(true);
             })
             .catch(err => {
                 if (err !== '取消删除') {
-                    showToast(`删除标签失败: ${err.message || err}`, 'error');
+                    api.showToast(`删除标签失败: ${err.message || err}`, 'error');
                 }
             });
     }
@@ -182,6 +182,6 @@ export function init(refreshFunc) {
             renderAvailableTags();
         })
         .catch(err => {
-            showToast(`加载标签列表失败: ${err.message}`, 'error');
+            api.showToast(`加载标签列表失败: ${err.message}`, 'error');
         });
 }

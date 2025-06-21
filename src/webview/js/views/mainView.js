@@ -1,5 +1,5 @@
 import { dom, state } from '../state.js';
-import { showEditForm, updateCategories, renderPrompts, showToast, navigateTo } from '../uiManager.js';
+import { showEditForm, updateCategories, renderPrompts, navigateTo } from '../uiManager.js';
 import * as api from '../api.js';
 
 function handlePromptItemClick(event) {
@@ -36,11 +36,15 @@ function handleSearchInput(e) {
     renderPrompts();
 }
 
+function handleAddPrompt() {
+    showEditForm(null, true);
+}
+
 export function init() {
     dom.mainViewElements.promptListContainer.addEventListener('click', handlePromptItemClick);
     dom.mainViewElements.categoryTabsContainer.addEventListener('click', handleCategoryTabClick);
     dom.mainViewElements.manageCategoriesButton.addEventListener('click', () => navigateTo('categoryManagement'));
-    dom.mainViewElements.addPromptButton.addEventListener('click', () => showEditForm(null, true));
+    dom.mainViewElements.addPromptButton.addEventListener('click', handleAddPrompt);
     dom.mainViewElements.searchInput.addEventListener('input', handleSearchInput);
     dom.mainViewElements.filterButton.addEventListener('click', () => navigateTo('filter'));
     dom.mainViewElements.settingsButton.addEventListener('click', () => navigateTo('settings'));

@@ -144,9 +144,22 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
                 break;
             }
             case 'webview:saveCloudSyncSettings': {
-                const updatedAppData = await this._dataManager.saveCloudSyncSettings(message.payload);
-                this.refresh(); // Refresh the view to show updated state
-                this._postMessage({ type: 'saveCloudSyncSettingsResponse', requestId: message.requestId, success: true, data: updatedAppData.settings });
+                try {
+                    const result = await this._dataManager.saveCloudSyncSettings(payload);
+                    this._postMessage({ type: 'saveCloudSyncSettingsResponse', requestId: message.requestId, success: true, data: result });
+                    vscode.window.showInformationMessage('云同步设置已保存并验证成功!');
+                } catch (error: any) {
+                    const errorMessage = error instanceof Error ? error.message : '发生未知错误';
+                    // Directly respond with the error message for the webview to handle
+                    this._postMessage({ 
+                        type: 'saveCloudSyncSettingsResponse', 
+                        requestId: message.requestId, 
+                        success: false, 
+                        error: errorMessage 
+                    });
+                    // Also show a native error notification to the user
+                    vscode.window.showErrorMessage(`云同步设置失败: ${errorMessage}`);
+                }
                 break;
             }
             case 'webview:disableCloudSync': {
@@ -240,11 +253,16 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
     
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'js', 'app.js'));
         const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'style.css'));
+
+        const nonce = getNonce();
     
         try {
             let htmlContent = fs.readFileSync(htmlPath.fsPath, 'utf8');
             
+            const cspSource = webview.cspSource;
             htmlContent = htmlContent
+                .replace(/__CSP_SOURCE__/g, `default-src 'none'; style-src ${cspSource} 'unsafe-inline' https://*.vscode-cdn.net; font-src ${cspSource} https://*.vscode-cdn.net; script-src 'nonce-${nonce}'; img-src ${cspSource} https:; connect-src ${cspSource};`)
+                .replace(/__NONCE__/g, nonce)
                 .replace(/__STYLE_URI__/g, styleUri.toString())
                 .replace(/__SCRIPT_URI__/g, scriptUri.toString());
     
@@ -261,42 +279,48 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
     }
 
     private _showNotification(message: string, type: 'info' | 'warning' | 'error' = 'info'): void {
-        const show = {
-            'info': vscode.window.showInformationMessage,
-            'warning': vscode.window.showWarningMessage,
-            'error': vscode.window.showErrorMessage,
-        };
-        show[type](message);
+        const options = { modal: false };
+        if (type === 'error') {
+            vscode.window.showErrorMessage(message, options);
+        } else if (type === 'warning') {
+            vscode.window.showWarningMessage(message, options);
+        } else {
+            vscode.window.showInformationMessage(message, options);
+        }
     }
 
     private async _showConfirmationDialog(message: string): Promise<boolean> {
-        const choice = await vscode.window.showWarningMessage(message, { modal: true }, '确认', '取消');
-        return choice === '确认';
+        const result = await vscode.window.showWarningMessage(message, { modal: true }, 'Confirm');
+        return result === 'Confirm';
     }
 
     private showError(error: any, requestType?: string, requestId?: string): void {
-        console.error(`Error handling '${requestType}':`, error);
+        console.error(`Error handling ${requestType || 'unknown'} request:`, error);
 
-        let errorMessage = '发生未知错误。';
+        let errorMessage = 'An unexpected error occurred.';
         if (error instanceof SyncError) {
-            errorMessage = error.message; 
+            errorMessage = `Sync Error: ${error.message}`;
         } else if (error instanceof Error) {
             errorMessage = error.message;
-        } else if (typeof error === 'string') {
-            errorMessage = error;
         }
         
-        // For specific requests from the webview, post the error back
-        if (requestId && requestType) {
-            const responseType = requestType.replace('webview:', '') + 'Response';
-            this._postMessage({ type: responseType, requestId: requestId, success: false, error: errorMessage });
+        if (requestId) {
+            this._postMessage({ type: `${requestType}Response`, requestId, success: false, error: errorMessage });
         } else {
-             // For general errors or commands, show a global error message
-            vscode.window.showErrorMessage(errorMessage);
+            this._postMessage({ type: 'backendError', error: errorMessage });
         }
     }
 
     public dispose(): void {
-        // Clean up resources if needed
+        this._view = undefined;
     }
+}
+
+function getNonce() {
+    let text = '';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < 32; i++) {
+        text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
 }

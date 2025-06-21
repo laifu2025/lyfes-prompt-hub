@@ -2,7 +2,7 @@
   "name": "lyfes-prompt-hub",
   "displayName": "Lyfe's Prompt Hub",
   "description": "A local-first, powerful prompt management tool that helps you efficiently organize, create, and reuse prompts.",
-  "version": "2.1.1",
+  "version": "2.1.4",
   "publisher": "Lyfe",
   "engines": {
     "vscode": "^1.85.0"
@@ -189,7 +189,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "node esbuild.mjs && cpx \"src/webview/**/*.{html,css,js}\" dist/webview",
+    "compile": "node esbuild.mjs && cpx \"src/webview/**/*.{html,css}\" dist/webview",
     "watch": "node esbuild.mjs --watch",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",

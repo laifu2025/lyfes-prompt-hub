@@ -1,11 +1,12 @@
 import { state, dom } from './state.js';
 import * as api from './api.js';
-import { navigateTo, goBack, renderAll, showToast, renderSettingsStatus } from './uiManager.js';
+import { navigateTo, goBack, renderAll, renderSettingsStatus } from './uiManager.js';
 import * as mainView from './views/mainView.js';
 import * as editView from './views/editView.js';
 import * as categoryView from './views/categoryView.js';
 import * as settingsView from './views/settingsView.js';
 import { initEventListeners } from './eventHandlers.js';
+import { init as initTooltips } from './tooltips.js';
 // Import other views later
 // import SettingsView from './views/settingsView.js';
 // import FilterView from './views/filterView.js';
@@ -20,7 +21,7 @@ export async function initialLoad() {
         }
     } catch (error) {
         console.error("Error during initial load:", error);
-        showToast(error.message || '获取初始数据失败', 'error');
+        api.showToast(error.message || '获取初始数据失败', 'error');
     }
 }
 
@@ -39,7 +40,7 @@ function init() {
     });
 
     window.addEventListener('backendError', (e) => {
-        showToast(e.detail, 'error');
+        api.showToast(e.detail, 'error');
     });
 
     mainView.init();
@@ -117,3 +118,29 @@ window.addEventListener('load', () => {
     init();
     initTooltipListeners();
 });
+
+async function initializeApp() {
+    try {
+        const data = await api.postMessageWithResponse('getInitialData');
+        state.appData = data.appData;
+        state.prompts = data.appData.prompts;
+        state.filter.category = data.appData.categories?.[0] || 'all';
+        
+        renderAll();
+        renderSettingsStatus(data.appData.settings);
+
+    } catch (error) {
+        console.error("Initialization failed:", error);
+        api.showToast(error.message || '获取初始数据失败', 'error');
+    }
+}
+
+function handleGlobalError(e) {
+    if (e.reason) { // For unhandled promise rejections
+        console.error('Unhandled Promise Rejection:', e.reason);
+        api.showToast(`发生未处理的错误: ${e.reason.message || e.reason}`, 'error');
+    } else { // For general errors
+        console.error('Global error caught:', e.message);
+        api.showToast(e.message, 'error');
+    }
+}

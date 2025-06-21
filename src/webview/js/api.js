@@ -52,3 +52,15 @@ export function showNotification(message, type = 'info') {
         payload: { message, type }
     });
 }
+
+// `showToast` is an alias for `showNotification` for semantic clarity in the views.
+export const showToast = showNotification;
+
+/**
+ * Saves the cloud sync settings.
+ * @param {object} settings The sync settings to save.
+ * @returns {Promise<any>}
+ */
+export function saveSyncSettings(settings) {
+    return postMessageWithResponse('webview:saveCloudSyncSettings', settings);
+}

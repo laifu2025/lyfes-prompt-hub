@@ -1,6 +1,6 @@
 import { dom, state } from '../state.js';
 import * as api from '../api.js';
-import { goBack, showToast } from '../uiManager.js';
+import { goBack } from '../uiManager.js';
 
 let refreshCallback = () => {};
 
@@ -57,12 +57,12 @@ function handleDeleteCategory(name) {
             }
             return Promise.reject('取消删除');
         }).then(() => {
-            showToast('分类已删除', 'success');
+            api.showToast('分类已删除', 'success');
             refreshCallback();
         }).catch(err => {
             if (err !== '取消删除') {
                 const errorMessage = err.message || '删除失败';
-                showToast(errorMessage, 'error');
+                api.showToast(errorMessage, 'error');
             }
         });
 }
@@ -115,7 +115,7 @@ function handleCategoryListClick(e) {
 
         const newName = input.value.trim();
         if (!newName) {
-            showToast('分类名称不能为空', 'error');
+            api.showToast('分类名称不能为空', 'error');
             return;
         }
 
@@ -128,12 +128,12 @@ function handleCategoryListClick(e) {
         actionPromise.then(result => {
             if (result) {
                 const message = isNewItem ? '分类已添加' : (newName !== originalName ? '分类已重命名' : '');
-                if (message) showToast(message, 'success');
+                if (message) api.showToast(message, 'success');
                 refreshCallback();
             }
         }).catch(err => {
             const action = isNewItem ? '添加' : '重命名';
-            showToast(`${action}失败: ${err.message}`, 'error');
+            api.showToast(`${action}失败: ${err.message}`, 'error');
             if (!isNewItem) {
                 toggleEditMode(item, false);
             }

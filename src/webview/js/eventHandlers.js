@@ -55,20 +55,27 @@ async function handleSavePrompt(e) {
 }
 
 async function handleDeletePrompt() {
-    if (!state.editingPromptId) return;
+    if (!state.editingPromptId) { return; }
 
-    // You might want to add a confirmation modal here
-    await handleDataAction('deletePrompt', {
-        success: 'Prompt 已删除！'
-    }, { id: state.editingPromptId });
+    try {
+        const response = await postMessageWithResponse('deletePrompt', { id: state.editingPromptId });
+
+        if (response.success) {
+            postMessageWithResponse('showNotification', { message: 'Prompt 已删除！', type: 'info' });
     
     ui.goBack();
     // Request a full data refresh
-    postMessageWithResponse('getAppData').then(response => {
-        state.appData = response.data;
-        state.prompts = response.data.prompts;
+            postMessageWithResponse('getAppData').then(refreshResponse => {
+                state.appData = refreshResponse.data;
+                state.prompts = refreshResponse.data.prompts;
         ui.renderAll();
     });
+        }
+        // If response.success is false (user cancelled), do nothing.
+    } catch (err) {
+        console.error('Delete prompt failed:', err);
+        postMessageWithResponse('showNotification', { message: err.message || '删除失败，请重试', type: 'error' });
+    }
 }
 
 function handleTagInput(e) {

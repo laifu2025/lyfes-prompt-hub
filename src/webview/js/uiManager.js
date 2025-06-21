@@ -10,7 +10,7 @@ let activeView = 'main';
 
 // --- Navigation ---
 
-export function navigateTo(viewName) {
+function navigateTo(viewName) {
     const cleanViewName = viewName.replace('-view', '');
     const targetView = dom.views[cleanViewName];
     if (!targetView) {
@@ -32,7 +32,7 @@ export function navigateTo(viewName) {
     }
 }
 
-export function goBack() {
+function goBack() {
     if (state.viewStack.length <= 1) return;
 
     state.viewStack.pop();
@@ -51,7 +51,7 @@ export function goBack() {
 
 // --- Rendering ---
 
-export function renderAll() {
+function renderAll() {
     renderPrompts();
     updateCategories();
     updateFilterView();
@@ -61,7 +61,7 @@ export function renderAll() {
     }
 }
 
-export function renderPrompts() {
+function renderPrompts() {
     if (!state.prompts) {
         return;
     }
@@ -104,7 +104,7 @@ export function renderPrompts() {
     dom.noResultsMessage.classList.toggle('hidden', filtered.length !== 0);
 }
 
-export function renderCategoryDropdown() {
+function renderCategoryDropdown() {
     const { categorySelect, categoryDropdownMenu } = dom.editViewElements;
     const categories = state.appData?.categories || [];
     dom.categoryDropdownMenu.innerHTML = categories.map(cat => `
@@ -112,7 +112,7 @@ export function renderCategoryDropdown() {
     `).join('');
 }
 
-export function renderTags() {
+function renderTags() {
     dom.tagPillsContainer.innerHTML = state.currentTags.map(tag => `
         <span class="tag-pill">
             ${tag}
@@ -120,7 +120,7 @@ export function renderTags() {
         </span>`).join('');
 }
 
-export function updateCategories() {
+function updateCategories() {
     const categories = ['all', ...(state.appData?.categories || [])];
 
     const createHtml = (cat, isActive) => `<button class="btn category-tab ${isActive ? 'active' : ''}" data-category="${cat}">${cat === 'all' ? '全部' : cat}</button>`;
@@ -130,7 +130,7 @@ export function updateCategories() {
     renderCategoryDropdown();
 }
 
-export function updateFilterView() {
+function updateFilterView() {
     if (!state.stagedFilter || !state.prompts) return;
 
     // Update Status Buttons
@@ -160,7 +160,7 @@ export function updateFilterView() {
 
 // --- Forms & UI State ---
 
-export function showEditForm(id, isCreate = false) {
+function showEditForm(id, isCreate = false) {
     const { editViewElements: elements } = dom;
     const prompt = isCreate 
         ? { id: null, title: '', content: '', category: '', tags: [] } 
@@ -168,7 +168,7 @@ export function showEditForm(id, isCreate = false) {
     
     if (!prompt) {
         console.error('Prompt not found for editing:', id);
-        showToast('找不到要编辑的Prompt', 'error');
+        api.showToast('找不到要编辑的Prompt', 'error');
         return;
     }
 
@@ -190,7 +190,7 @@ export function showEditForm(id, isCreate = false) {
     navigateTo('edit');
 }
 
-export function renderSettingsStatus(status) {
+function renderSettingsStatus(status) {
     const updateBadge = (element, text, statusType) => {
         if (element) {
             element.textContent = text;
@@ -209,15 +209,38 @@ export function renderSettingsStatus(status) {
     dom.settingsViewElements.syncFromCloudButton.disabled = !isEnabled;
 }
 
-// --- Toasts (Notifications) ---
+function showToast(message, type = 'info') {
+    const container = dom.toastContainer;
+    if (!container) return;
 
-/**
- * 使用 VS Code 的原生通知API显示消息。
- * @param {string} message - 要显示的消息.
- * @param {'info' | 'success' | 'warning' | 'error'} type - 通知类型.
- */
-export function showToast(message, type = 'info') {
-    // 将 'success' 映射到 'info'，因为 VS Code 的原生通知只有这三种
-    const notificationType = type === 'success' ? 'info' : type;
-    api.showNotification(message, notificationType);
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+
+    container.appendChild(toast);
+
+    // Automatically remove the toast after a few seconds
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 500); // Remove from DOM after transition
+    }, 4500);
 }
+
+export {
+    // Navigation
+    navigateTo,
+    goBack,
+    // Rendering
+    renderAll,
+    renderPrompts,
+    renderCategoryDropdown,
+    renderTags,
+    updateCategories,
+    updateFilterView,
+    // Forms & UI State
+    showEditForm,
+    renderSettingsStatus,
+    showToast,
+    // Globals
+    dom
+};

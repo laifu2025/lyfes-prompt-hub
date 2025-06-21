@@ -65,8 +65,8 @@ interface GistGetResponse {
 
 // GitLab interfaces
 interface GitLabSnippetResponse {
-    id: string;
-    raw_url: string;
+    id: number;
+    raw_url?: string;
 }
 
 // Gitee interfaces
@@ -101,6 +101,30 @@ export class DataManager {
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
         this.initializeAutoBackup().catch((err: any) => console.error("Failed to initialize auto-backup:", err));
+    }
+
+    private async getSecret(key: 'githubToken' | 'giteeToken' | 'gitlabToken' | 'webdavPassword' | 'customApiKey' | 'gitlabUrl' | 'webdavUrl' | 'customApiUrl'): Promise<string | undefined> {
+        const keyMap = {
+            githubToken: DataManager.STORAGE_KEYS.GITHUB_TOKEN,
+            giteeToken: DataManager.STORAGE_KEYS.GITEE_TOKEN,
+            gitlabToken: DataManager.STORAGE_KEYS.GITLAB_TOKEN,
+            webdavPassword: DataManager.STORAGE_KEYS.WEBDAV_PASSWORD,
+            customApiKey: DataManager.STORAGE_KEYS.CUSTOM_API_KEY,
+            gitlabUrl: 'promptHub.gitlabUrl',
+            webdavUrl: 'promptHub.webdavUrl',
+            customApiUrl: 'promptHub.customApiUrl',
+        };
+        const secretKey = keyMap[key];
+        if (!secretKey) return undefined;
+    
+        if (['gitlabUrl', 'webdavUrl', 'customApiUrl'].includes(key)) {
+            const appData = await this.getAppData();
+            if (key === 'gitlabUrl') return appData.settings.gitlabUrl;
+            if (key === 'webdavUrl') return appData.settings.webdavUrl;
+            if (key === 'customApiUrl') return appData.settings.customApiUrl;
+        }
+
+        return this.context.secrets.get(secretKey);
     }
 
     // #region Core Data Handling
@@ -538,15 +562,15 @@ export class DataManager {
     }
 
     private async _validateAndStoreGitee(token: string, gistId?: string): Promise<string> {
-        const result = await this._testGiteeGist(token, gistId);
+        const validatedGist = await this._testGiteeGist(token, gistId);
         await this.context.secrets.store(DataManager.STORAGE_KEYS.GITEE_TOKEN, token);
-        return result.gistId;
+        return validatedGist.gistId;
     }
 
     private async _validateAndStoreGitLab(url: string, token: string, snippetId?: string): Promise<string> {
-        const result = await this._testGitLabSnippet(url, token, snippetId);
+        const validatedSnippet = await this._testGitLabSnippet(url, token, snippetId);
         await this.context.secrets.store(DataManager.STORAGE_KEYS.GITLAB_TOKEN, token);
-        return result.snippetId;
+        return validatedSnippet.snippetId;
     }
 
     private async _validateAndStoreWebDAV(url: string, user: string, pass: string): Promise<void> {
@@ -582,94 +606,134 @@ export class DataManager {
 
     private async _testGitHubGist(token: string, gistId?: string): Promise<{ gistId: string, isNew: boolean }> {
         const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' };
-        try {
+        
             if (gistId) {
-                // Test existing Gist
+            // Validate existing Gist
+            try {
                 await axios.get(`https://api.github.com/gists/${gistId}`, { headers });
                 return { gistId, isNew: false };
+            } catch (error) {
+                throw this._handleAxiosError(error, 'GitHub', 'test');
+            }
             } else {
-                // Test token by creating a new Gist
+            // Create new Gist
+            try {
                 const response = await axios.post('https://api.github.com/gists', {
-                    description: 'Prompt Hub Sync Data',
+                    description: 'Lyfe\'s Prompt Hub Sync',
                     public: false,
                     files: { [DataManager.SYNC_FILENAME]: { content: '{}' } }
                 }, { headers });
-                const newGistId = (response.data as GistCreateResponse).id;
-                // clean up
-                await axios.delete(`https://api.github.com/gists/${newGistId}`, { headers });
+                const newGistId = response.data.id;
+                if (!newGistId) {
+                    throw new Error('创建Gist成功，但未能获取Gist ID。');
+                }
                 return { gistId: newGistId, isNew: true }; 
-            }
         } catch (error) {
+                // Here is the source of the problem. Axios errors are not standard Error objects.
+                // We must wrap it to ensure it has a .message property.
             throw this._handleAxiosError(error, 'GitHub', 'test');
+            }
         }
     }
     
     private async _testGiteeGist(token: string, gistId?: string): Promise<{ gistId: string, isNew: boolean }> {
+        const giteeApiUrl = `https://gitee.com/api/v5`;
         const headers = { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' };
-        try {
-            if (gistId) {
-                await axios.get(`https://gitee.com/api/v5/gists/${gistId}`, { headers });
+        const fileName = DataManager.SYNC_FILENAME;
+
+        if (gistId) {
+            try {
+                await axios.get(`${giteeApiUrl}/gists/${gistId}`, { headers });
                 return { gistId, isNew: false };
-            } else {
-                const response = await axios.post('https://gitee.com/api/v5/gists', {
-                    description: 'Prompt Hub Sync Data',
-                    public: false,
-                    files: { [DataManager.SYNC_FILENAME]: { content: '{}' } }
-                }, { headers });
-                const newGistId = (response.data as GiteeGistResponse).id;
-                // clean up
-                await axios.delete(`https://gitee.com/api/v5/gists/${newGistId}`, { headers });
-                return { gistId: newGistId, isNew: true };
+            } catch (error: any) {
+                if (error.response && error.response.status === 404) {
+                    // Gist not found, fall through to create a new one
+                } else {
+                    throw this._handleAxiosError(error, 'Gitee', 'test');
+                }
             }
+        }
+
+        try {
+            const createData = {
+                files: { [fileName]: { content: '{"version":"1.0.0"}' } },
+                description: 'Prompt Hub Sync Data',
+                public: false,
+            };
+            const response = await axios.post<GiteeGistResponse>(`${giteeApiUrl}/gists`, createData, { headers });
+            return { gistId: response.data.id, isNew: true };
         } catch (error) {
-            throw this._handleAxiosError(error, 'Gitee', 'test');
+            throw this._handleAxiosError(error, 'Gitee', 'write');
         }
     }
 
     private async _testGitLabSnippet(url: string, token: string, snippetId?: string): Promise<{ snippetId: string, isNew: boolean }> {
-        const headers = { 'PRIVATE-TOKEN': token };
-        const apiUrl = new URL(url);
-        apiUrl.pathname = path.join(apiUrl.pathname, 'api/v4');
-        const endpoint = apiUrl.toString();
+        const apiUrl = url.endsWith('/') ? `${url}api/v4` : `${url}/api/v4`;
+        const headers = { 'PRIVATE-TOKEN': token, 'Content-Type': 'application/json' };
 
-        try {
-            if (snippetId) {
-                await axios.get(`${endpoint}/snippets/${snippetId}`, { headers });
+        if (snippetId) {
+            try {
+                await axios.get(`${apiUrl}/snippets/${snippetId}`, { headers });
                 return { snippetId, isNew: false };
+            } catch (error: any) {
+                if (error.response && error.response.status === 404) {
+                    // Snippet not found, fall through to create a new one
+                } else {
+                    throw this._handleAxiosError(error, 'GitLab', 'test');
+                }
+            }
+        }
+        
+        // Create a new snippet if no ID is provided or the existing one is not found
+        try {
+            const createData = {
+                title: 'Prompt Hub Sync Data',
+                file_name: DataManager.SYNC_FILENAME,
+                content: JSON.stringify({ prompts: [], categories: [], version: '1.0' }, null, 2),
+                visibility: 'private' as const
+            };
+
+            const response = await axios.post<GitLabSnippetResponse>(`${apiUrl}/snippets`, createData, { headers });
+            
+            if (response.data && response.data.id) {
+                return { snippetId: response.data.id.toString(), isNew: true };
             } else {
-                const response = await axios.post(`${endpoint}/snippets`, {
-                    title: 'Prompt Hub Sync Data',
-                    visibility: 'private',
-                    files: [{ file_path: DataManager.SYNC_FILENAME, content: '{}' }]
-                }, { headers });
-                const newSnippetId = (response.data as GitLabSnippetResponse).id;
-                // clean up
-                await axios.delete(`${endpoint}/snippets/${newSnippetId}`, { headers });
-                return { snippetId: newSnippetId, isNew: true };
+                throw new Error('Failed to create GitLab snippet: Invalid response from server.');
             }
         } catch (error) {
-            throw this._handleAxiosError(error, 'GitLab', 'test');
+            throw this._handleAxiosError(error, 'GitLab', 'write');
         }
     }
 
     private async _testWebDAV(url: string, user: string, pass: string): Promise<void> {
         const client: WebDAVClient = createClient(url, { username: user, password: pass });
+        const testFilePath = `/.prompt-hub-test-${Date.now()}.tmp`;
         try {
-            // Test connection and credentials by listing root directory contents
-            await client.getDirectoryContents('/');
+            // Attempt to write a temporary file to test permissions
+            await client.putFileContents(testFilePath, 'test');
+            // Attempt to delete the temporary file
+            await client.deleteFile(testFilePath);
         } catch (error: any) {
-            if (error.response && error.response.status === 401) {
-                throw new SyncError('WebDAV 用户名或密码错误。', 'INVALID_CREDENTIALS');
+            console.error('[WebDAV Test] Error:', error.message);
+            // Try to clean up even if there was an error
+            try {
+                if (await client.exists(testFilePath)) {
+                    await client.deleteFile(testFilePath);
+                }
+            } catch (cleanupError) {
+                // Ignore cleanup errors
             }
-            throw new SyncError(`连接 WebDAV 服务器失败: ${error.message}`, 'CONNECTION_FAILED');
+            throw new SyncError('Failed to verify WebDAV server access. Check URL, credentials, and permissions.', 'AUTH_ERROR');
         }
     }
 
     private async _testCustomApi(url: string, key: string): Promise<void> {
         try {
-            await axios.get(url, { headers: { 'Authorization': `Bearer ${key}` } });
+            await axios.get(url, {
+                headers: { 'Authorization': `Bearer ${key}` }
+            });
         } catch (error) {
-             throw this._handleAxiosError(error, '自定义 API', 'test');
+            throw this._handleAxiosError(error, 'Custom API', 'test');
         }
     }
     
@@ -850,65 +914,70 @@ export class DataManager {
 
         if (confirmation !== '确定') { return; }
         
-        appData.settings.cloudSync = false;
-        appData.settings.syncProvider = null;
-        appData.settings.gistId = undefined;
-        appData.settings.gitlabUrl = undefined;
-        appData.settings.webdavUrl = undefined;
-        appData.settings.webdavUsername = undefined;
-        appData.settings.customApiUrl = undefined;
+            appData.settings.cloudSync = false;
+            appData.settings.syncProvider = null;
+            appData.settings.gistId = undefined;
+            appData.settings.gitlabUrl = undefined;
+            appData.settings.webdavUrl = undefined;
+            appData.settings.webdavUsername = undefined;
+            appData.settings.customApiUrl = undefined;
         appData.settings.isValidated = false;
 
         await this._clearAllSecrets();
-        await this.saveAppData(appData);
+            await this.saveAppData(appData);
 
-        return appData;
+            return appData;
     }
 
     public async syncToCloud(): Promise<void> {
         const appData = await this.getAppData();
         if (!appData.settings.cloudSync || !appData.settings.syncProvider) {
-            console.log("Cloud sync is not enabled.");
-            return;
+            throw new SyncError('云同步未配置或未启用。', 'NOT_CONFIGURED');
         }
 
-        const dataToSync = JSON.stringify(appData, null, 4);
+        // Create a serializable copy of the data
+        const dataToSync = {
+            prompts: appData.prompts,
+            categories: appData.categories,
+            // We don't sync settings to avoid loops and conflicts
+        };
+        const content = JSON.stringify(dataToSync, null, 2);
 
-        try {
             switch (appData.settings.syncProvider) {
                 case 'github':
-                    await this.syncToGitHub(dataToSync);
+                await this.syncToGitHub(content);
                     break;
                 case 'gitee':
-                    await this.syncToGitee(dataToSync);
+                await this.syncToGitee(content);
                     break;
                 case 'gitlab':
-                    await this.syncToGitLab(dataToSync);
+                await this.syncToGitLab(content);
                     break;
                 case 'webdav':
-                    await this.syncToWebDAV(dataToSync);
+                await this.syncToWebDAV(content);
                     break;
                 case 'custom':
-                    await this.syncToCustomApi(dataToSync);
+                await this.syncToCustomApi(content);
                     break;
-            }
-             vscode.window.setStatusBarMessage('✅ 同步成功', 3000);
-        } catch (error: any) {
-            const message = error instanceof SyncError ? error.message : `同步失败: ${error.message}`;
-            vscode.window.showErrorMessage(message);
-            // Re-throw to allow caller to handle if needed
-            throw error;
+            default:
+                throw new SyncError('不支持的同步服务商。', 'UNSUPPORTED_PROVIDER');
         }
     }
 
     private async syncToGitHub(content: string): Promise<void> {
-        const appData = await this.getAppData();
         const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITHUB_TOKEN);
-        if (!token || !appData.settings.gistId) throw new SyncError('GitHub 配置不完整。', 'CONFIG_INCOMPLETE');
-        const headers = { 'Authorization': `token ${token}` };
-        const url = `https://api.github.com/gists/${appData.settings.gistId}`;
+        if (!token) throw new SyncError('GitHub Token 未找到或无效。', 'AUTH_ERROR');
+        
+        const { gistId } = (await this.getAppData()).settings;
+        if (!gistId) throw new SyncError('GitHub Gist ID 未找到。', 'NOT_FOUND');
+
+        const url = `https://api.github.com/gists/${gistId}`;
         try {
-            await axios.patch(url, { files: { [DataManager.SYNC_FILENAME]: { content } } }, { headers });
+            await axios.patch(url, {
+                files: { [DataManager.SYNC_FILENAME]: { content } }
+            }, {
+                headers: { 'Authorization': `token ${token}` }
+            });
         } catch (error) {
             throw this._handleAxiosError(error, 'GitHub', 'write');
         }
@@ -916,12 +985,20 @@ export class DataManager {
 
     private async syncToGitee(content: string): Promise<void> {
         const appData = await this.getAppData();
-        const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITEE_TOKEN);
-        if (!token || !appData.settings.gistId) throw new SyncError('Gitee 配置不完整。', 'CONFIG_INCOMPLETE');
-        const headers = { 'Authorization': `token ${token}` };
-        const url = `https://gitee.com/api/v5/gists/${appData.settings.gistId}`;
+        const gistId = appData.settings.gistId;
+        const token = await this.getSecret('giteeToken');
+
+        if (!gistId || !token) {
+            throw new SyncError('Gitee settings are incomplete. Please configure sync.', 'CONFIG_ERROR');
+        }
+        
+        const giteeApiUrl = `https://gitee.com/api/v5`;
+        const headers = { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' };
+        const fileName = DataManager.SYNC_FILENAME;
+
         try {
-            await axios.patch(url, { files: { [DataManager.SYNC_FILENAME]: { content } } }, { headers });
+            const updateData = { files: { [fileName]: { content: content } } };
+            await axios.patch(`${giteeApiUrl}/gists/${gistId}`, updateData, { headers });
         } catch (error) {
             throw this._handleAxiosError(error, 'Gitee', 'write');
         }
@@ -929,54 +1006,63 @@ export class DataManager {
 
     private async syncToGitLab(content: string): Promise<void> {
         const appData = await this.getAppData();
-        const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITLAB_TOKEN);
-        if (!token || !appData.settings.gistId || !appData.settings.gitlabUrl) throw new SyncError('GitLab 配置不完整。', 'CONFIG_INCOMPLETE');
-        
-        const apiUrl = new URL(appData.settings.gitlabUrl);
-        apiUrl.pathname = path.join(apiUrl.pathname, `api/v4/snippets/${appData.settings.gistId}`);
-        const url = apiUrl.toString();
-        
-        const headers = { 'PRIVATE-TOKEN': token };
+        const snippetId = appData.settings.gistId;
+        const url = appData.settings.gitlabUrl;
+        const token = await this.getSecret('gitlabToken');
+
+        if (!snippetId || !url || !token) {
+            throw new SyncError('GitLab settings are incomplete. Please configure sync.', 'CONFIG_ERROR');
+        }
+
+        const apiUrl = url.endsWith('/') ? `${url}api/v4` : `${url}/api/v4`;
+        const headers = { 'PRIVATE-TOKEN': token, 'Content-Type': 'application/json' };
 
         try {
-            await axios.put(url, { 
-                files: [{ action: 'update', file_path: DataManager.SYNC_FILENAME, content }] 
-            }, { headers });
+            const updateData = {
+                content: content
+            };
+            await axios.put(`${apiUrl}/snippets/${snippetId}`, updateData, { headers });
         } catch (error) {
             throw this._handleAxiosError(error, 'GitLab', 'write');
         }
     }
 
     private async syncToWebDAV(content: string): Promise<void> {
-        const appData = await this.getAppData();
         const password = await this.context.secrets.get(DataManager.STORAGE_KEYS.WEBDAV_PASSWORD);
-        if (!password || !appData.settings.webdavUrl || !appData.settings.webdavUsername) throw new SyncError('WebDAV 配置不完整。', 'CONFIG_INCOMPLETE');
+        if (!password) throw new SyncError('WebDAV 密码未找到或无效。', 'AUTH_ERROR');
+        
+        const { webdavUrl, webdavUsername } = (await this.getAppData()).settings;
+        if (!webdavUrl || !webdavUsername) throw new SyncError('WebDAV URL 或用户名未找到。', 'NOT_FOUND');
 
-        const client: WebDAVClient = createClient(appData.settings.webdavUrl, { 
-            username: appData.settings.webdavUsername, 
-            password 
-        });
-
+        const client: WebDAVClient = createClient(webdavUrl, { username: webdavUsername, password });
+        const filePath = `/${DataManager.SYNC_FILENAME}`;
+        
         try {
-            await client.putFileContents(`/${DataManager.SYNC_FILENAME}`, content, { overwrite: true });
+            await client.putFileContents(filePath, content, { overwrite: true });
         } catch (error: any) {
-             if (error.response && error.response.status === 401) {
-                throw new SyncError('WebDAV 用户名或密码错误。', 'INVALID_CREDENTIALS');
-            }
-            throw new SyncError(`写入 WebDAV 失败: ${error.message}`, 'WRITE_FAILED');
+            console.error('WebDAV Sync Error:', error.message);
+            throw new SyncError(`WebDAV upload failed: ${error.message}`, 'WRITE_ERROR');
         }
     }
 
     private async syncToCustomApi(content: string): Promise<void> {
         const appData = await this.getAppData();
-        const key = await this.context.secrets.get(DataManager.STORAGE_KEYS.CUSTOM_API_KEY);
-        if (!key || !appData.settings.customApiUrl) throw new SyncError('自定义 API 配置不完整。', 'CONFIG_INCOMPLETE');
-        
-        const headers = { 'Authorization': `Bearer ${key}` };
+        const url = appData.settings.customApiUrl;
+        const key = await this.getSecret('customApiKey');
+
+        if (!url || !key) {
+            throw new SyncError('Custom API settings are incomplete. Please configure sync.', 'CONFIG_ERROR');
+        }
+
         try {
-            await axios.post(appData.settings.customApiUrl, { content }, { headers });
+            await axios.post(url, JSON.parse(content), {
+                headers: {
+                    'Authorization': `Bearer ${key}`,
+                    'Content-Type': 'application/json'
+                }
+            });
         } catch (error) {
-            throw this._handleAxiosError(error, '自定义 API', 'write');
+            throw this._handleAxiosError(error, 'Custom API', 'write');
         }
     }
 
@@ -988,7 +1074,7 @@ export class DataManager {
         }
 
         try {
-            let remoteData: AppData | null = null;
+            let remoteData: Partial<Pick<AppData, 'prompts' | 'categories'>> | null = null;
             switch (appData.settings.syncProvider) {
                 case 'github':
                     remoteData = await this.syncFromGitHub();
@@ -1008,9 +1094,15 @@ export class DataManager {
             }
 
             if (remoteData) {
-                await this.saveAppData(remoteData);
-                 vscode.window.setStatusBarMessage('✅ 从云端恢复数据成功', 3000);
-                return remoteData;
+                // Get the latest local data again to have the settings
+                const currentData = await this.getAppData();
+                // Overwrite prompts and categories with the synced data
+                currentData.prompts = remoteData.prompts || [];
+                currentData.categories = remoteData.categories || [];
+                
+                await this.saveAppData(currentData);
+                vscode.window.setStatusBarMessage('✅ 从云端恢复数据成功', 3000);
+                return currentData;
             }
             return null;
         } catch (error: any) {
@@ -1020,7 +1112,7 @@ export class DataManager {
         }
     }
 
-    private async syncFromGitHub(): Promise<AppData | null> {
+    private async syncFromGitHub(): Promise<Partial<Pick<AppData, 'prompts' | 'categories'>> | null> {
         const appData = await this.getAppData();
         const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITHUB_TOKEN);
         if (!token || !appData.settings.gistId) throw new SyncError('GitHub 配置不完整。', 'CONFIG_INCOMPLETE');
@@ -1031,61 +1123,98 @@ export class DataManager {
         try {
             const response = await axios.get<GistGetResponse>(url, { headers });
             const file = response.data.files[DataManager.SYNC_FILENAME];
-            return file && file.content ? JSON.parse(file.content) : null;
+            if (file && file.content) {
+                const parsed = JSON.parse(file.content);
+                // Ensure we return an object that at least has prompts and categories
+                return {
+                    prompts: parsed.prompts || [],
+                    categories: parsed.categories || []
+                };
+            }
+            return null;
         } catch (error) {
             throw this._handleAxiosError(error, 'GitHub', 'read');
         }
     }
 
-    private async syncFromGitee(): Promise<AppData | null> {
+    private async syncFromGitee(): Promise<Partial<Pick<AppData, 'prompts' | 'categories'>> | null> {
         const appData = await this.getAppData();
-        const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITEE_TOKEN);
-        if (!token || !appData.settings.gistId) throw new SyncError('Gitee 配置不完整。', 'CONFIG_INCOMPLETE');
-        
+        const gistId = appData.settings.gistId;
+        const token = await this.getSecret('giteeToken');
+        if (!gistId || !token) {
+            throw new SyncError('Gitee settings are incomplete. Please configure sync.', 'CONFIG_ERROR');
+        }
+        const giteeApiUrl = `https://gitee.com/api/v5`;
         const headers = { 'Authorization': `token ${token}` };
-        const url = `https://gitee.com/api/v5/gists/${appData.settings.gistId}`;
-        
+        const fileName = DataManager.SYNC_FILENAME;
         try {
-            const response = await axios.get<GistGetResponse>(url, { headers });
-            const file = response.data.files[DataManager.SYNC_FILENAME];
-            return file && file.content ? JSON.parse(file.content) : null;
+            const response = await axios.get<GistGetResponse>(`${giteeApiUrl}/gists/${gistId}`, { headers });
+            const fileContent = response.data.files[fileName]?.content;
+            if (fileContent) {
+                const parsed = JSON.parse(fileContent);
+                return {
+                    prompts: parsed.prompts || [],
+                    categories: parsed.categories || []
+                };
+            }
+            return null;
         } catch (error) {
             throw this._handleAxiosError(error, 'Gitee', 'read');
         }
     }
 
-    private async syncFromGitLab(): Promise<AppData | null> {
+    private async syncFromGitLab(): Promise<Partial<Pick<AppData, 'prompts' | 'categories'>> | null> {
         const appData = await this.getAppData();
-        const token = await this.context.secrets.get(DataManager.STORAGE_KEYS.GITLAB_TOKEN);
-        if (!token || !appData.settings.gistId || !appData.settings.gitlabUrl) throw new SyncError('GitLab 配置不完整。', 'CONFIG_INCOMPLETE');
-        
-        const apiUrl = new URL(appData.settings.gitlabUrl);
-        apiUrl.pathname = path.join(apiUrl.pathname, `api/v4/snippets/${appData.settings.gistId}/raw`);
-        const url = apiUrl.toString();
+        const snippetId = appData.settings.gistId;
+        const url = appData.settings.gitlabUrl;
+        const token = await this.getSecret('gitlabToken');
 
+        if (!snippetId || !url || !token) {
+            throw new SyncError('GitLab settings are incomplete. Please configure sync.', 'CONFIG_ERROR');
+        }
+
+        const apiUrl = url.endsWith('/') ? `${url}api/v4` : `${url}/api/v4`;
         const headers = { 'PRIVATE-TOKEN': token };
-        
+
         try {
-            const response = await axios.get<AppData>(url, { headers });
-            return response.data;
-        } catch (error) {
+            // Note: GitLab raw endpoint returns the raw file content directly, not a JSON object
+            const response = await axios.get<string>(`${apiUrl}/snippets/${snippetId}/raw`, { headers });
+            
+            if (typeof response.data === 'string' && response.data.trim() !== '') {
+                const parsedData = JSON.parse(response.data);
+                // We only care about prompts and categories from the cloud
+                if (parsedData && (parsedData.prompts || parsedData.categories)) {
+                    return {
+                        prompts: parsedData.prompts || [],
+                        categories: parsedData.categories || []
+                    };
+                }
+            }
+             // Return null or an empty structure if data is invalid or empty
+            return null;
+
+        } catch (error: any) {
+            if (error.response && error.response.status === 404) {
+                 throw new SyncError('GitLab 资源未找到。请检查 Snippet ID 或 URL。', 'NOT_FOUND');
+            }
             throw this._handleAxiosError(error, 'GitLab', 'read');
         }
     }
     
-    private async syncFromWebDAV(): Promise<AppData | null> {
-        const appData = await this.getAppData();
-        const password = await this.context.secrets.get(DataManager.STORAGE_KEYS.WEBDAV_PASSWORD);
-        if (!password || !appData.settings.webdavUrl || !appData.settings.webdavUsername) throw new SyncError('WebDAV 配置不完整。', 'CONFIG_INCOMPLETE');
+    private async syncFromWebDAV(): Promise<Partial<Pick<AppData, 'prompts' | 'categories'>> | null> {
+        const { webdavUrl, webdavUsername } = (await this.getAppData()).settings;
+        const password = await this.getSecret('webdavPassword');
+        if (!webdavUrl || !webdavUsername || !password) throw new SyncError('WebDAV 配置不完整。', 'CONFIG_INCOMPLETE');
         
-        const client: WebDAVClient = createClient(appData.settings.webdavUrl, { 
-            username: appData.settings.webdavUsername, 
-            password 
-        });
+        const client: WebDAVClient = createClient(webdavUrl, { username: webdavUsername, password });
 
         try {
             const content = await client.getFileContents(`/${DataManager.SYNC_FILENAME}`, { format: 'text' });
-            return JSON.parse(content as string);
+            const parsed = JSON.parse(content as string);
+            return {
+                prompts: parsed.prompts || [],
+                categories: parsed.categories || []
+            };
         } catch (error: any) {
             if (error.response && error.response.status === 404) {
                  return null; // File doesn't exist, which is fine on first sync
@@ -1097,18 +1226,32 @@ export class DataManager {
         }
     }
     
-    private async syncFromCustomApi(): Promise<AppData | null> {
+    private async syncFromCustomApi(): Promise<Partial<Pick<AppData, 'prompts' | 'categories'>> | null> {
         const appData = await this.getAppData();
-        const key = await this.context.secrets.get(DataManager.STORAGE_KEYS.CUSTOM_API_KEY);
-        if (!key || !appData.settings.customApiUrl) throw new SyncError('自定义 API 配置不完整。', 'CONFIG_INCOMPLETE');
-        
-        const headers = { 'Authorization': `Bearer ${key}` };
+        const url = appData.settings.customApiUrl;
+        const key = await this.getSecret('customApiKey');
+
+        if (!url || !key) {
+            throw new SyncError('Custom API settings are incomplete. Please configure sync.', 'CONFIG_ERROR');
+        }
+
         try {
-            const response = await axios.get(appData.settings.customApiUrl, { headers });
-            // Assuming the API returns the AppData structure directly
-            return response.data as AppData;
+            const response = await axios.get(url, {
+                headers: { 'Authorization': `Bearer ${key}` }
+            });
+
+            if (response.data && typeof response.data === 'object') {
+                const parsed = response.data;
+                return {
+                    prompts: parsed.prompts || [],
+                    categories: parsed.categories || []
+                };
+            }
+            
+            throw new Error('Invalid data format received from Custom API.');
+
         } catch (error) {
-            throw this._handleAxiosError(error, '自定义 API', 'read');
+            throw this._handleAxiosError(error, 'Custom API', 'read');
         }
     }
 

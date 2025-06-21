@@ -1,49 +1,49 @@
 import { dom, state } from '../state.js';
 import * as api from '../api.js';
-import { navigateTo, showToast } from '../uiManager.js';
+import { navigateTo, renderSettingsStatus } from '../uiManager.js';
 
 let refreshCallback = () => {};
 let hasInitialized = false;
 
-function handleImport() {
-    api.postMessageWithResponse('importData')
-        .then(() => {
-            showToast('数据导入成功！', 'success');
-            refreshCallback();
-        })
-        .catch(err => showToast(`导入失败: ${err.message}`, 'error'));
+function handleImport(files) {
+    if (files.length === 0) return;
+    const file = files[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        api.postMessageWithResponse('importData', { data: event.target.result })
+            .then(() => api.showToast('数据导入成功！', 'success'))
+            .catch(err => api.showToast(`导入失败: ${err.message}`, 'error'));
+    };
+    reader.readAsText(file);
 }
 
 function handleExport() {
     api.postMessageWithResponse('exportData')
-        .then(() => showToast('数据已导出', 'success'))
-        .catch(err => showToast(`导出失败: ${err.message}`, 'error'));
+        .then(() => api.showToast('数据已导出', 'success'))
+        .catch(err => api.showToast(`导出失败: ${err.message}`, 'error'));
 }
 
-function handleCreateBackup() {
-    api.postMessageWithResponse('createBackup')
-        .then(result => showToast(`备份已创建: ${result.path}`, 'success'))
-        .catch(err => showToast(`备份失败: ${err.message}`, 'error'));
+function handleBackup() {
+    api.postMessageWithResponse('backupData')
+        .then(result => api.showToast(`备份已创建: ${result.path}`, 'success'))
+        .catch(err => api.showToast(`备份失败: ${err.message}`, 'error'));
 }
 
-function handleRestoreBackup() {
-    api.postMessageWithResponse('restoreBackup')
-        .then(result => {
-            if (result.restored) {
-                showToast('备份恢复成功！', 'success');
-                refreshCallback();
+function handleRestore() {
+    api.postMessageWithResponse('restoreData')
+        .then(response => {
+            if (response.success) {
+                api.showToast('备份恢复成功！', 'success');
             }
         })
-        .catch(err => showToast(`恢复失败: ${err.message}`, 'error'));
+        .catch(err => api.showToast(`恢复失败: ${err.message}`, 'error'));
 }
 
-function handleToggleWorkspaceMode() {
-    api.postMessageWithResponse('toggleWorkspaceMode')
-        .then(() => {
-            showToast('存储模式已切换', 'success');
-            refreshCallback();
-        })
-        .catch(err => showToast(`切换失败: ${err.message}`, 'error'));
+function handleStorageChange(event) {
+    const newMode = event.target.value;
+    api.postMessageWithResponse('setStorageMode', { mode: newMode })
+        .then(() => api.showToast('存储模式已切换', 'success'))
+        .catch(err => api.showToast(`切换失败: ${err.message}`, 'error'));
 }
 
 // --- New Cloud Sync UI Logic ---
@@ -93,11 +93,11 @@ function handleSyncToggle(event) {
         // If user disables sync, call backend to clear settings
         api.postMessageWithResponse('webview:disableCloudSync')
             .then(() => {
-                showToast('云同步已禁用', 'success');
+                api.showToast('云同步已禁用', 'success');
                 elements.syncProviderSelect.value = 'disabled';
                 showProviderConfig('disabled');
             })
-            .catch(err => showToast(`禁用失败: ${err.message}`, 'error'));
+            .catch(err => api.showToast(`禁用失败: ${err.message}`, 'error'));
     }
 }
 
@@ -151,7 +151,7 @@ function renderSyncSummary(settings) {
     summaryView.querySelector('#edit-sync-settings-btn').addEventListener('click', () => {
         const currentProvider = dom.settingsViewElements.syncProviderSelect.value;
         setSyncConfigLockedState(false, {}, currentProvider); // Pass empty settings object
-        showToast('设置已解锁，您可以进行修改。', 'info');
+        api.showToast('设置已解锁，您可以进行修改。', 'info');
     });
 }
 
@@ -167,169 +167,157 @@ function setSyncConfigLockedState(isLocked, settings, provider) {
     if (isLocked) {
         renderSyncSummary(settings);
         document.getElementById('sync-actions-container').classList.remove('hidden');
+        // Re-attach listeners here ensures the buttons are in the DOM.
+        document.getElementById('sync-to-cloud-btn')?.addEventListener('click', handleSyncToCloud);
+        document.getElementById('sync-from-cloud-btn')?.addEventListener('click', handleSyncFromCloud);
     } else {
+        // When unlocking, also show the correct provider's config inputs
+        showProviderConfig(provider);
         document.getElementById('sync-actions-container').classList.add('hidden');
     }
 }
 
-function handleSaveSyncSettings() {
-    console.log('handleSaveSyncSettings called');
+export async function handleSaveSyncSettings() {
     const { settingsViewElements: elements } = dom;
-    const provider = elements.syncProviderSelect.value;
-    if (provider === 'disabled') {
-        showToast('请先选择一个同步服务商', 'error');
-        return;
-    }
+    const saveButton = elements.saveSyncSettingsButton;
+    setSaveButtonLoading(true);
 
-    const settings = { provider };
+    const provider = elements.syncProviderSelect.value;
+    const settings = {
+        provider: provider,
+        token: '',
+        gistId: '',
+        gitlabUrl: '',
+        webdavUrl: '',
+        webdavUsername: '',
+        customApiUrl: '',
+    };
 
     switch (provider) {
         case 'github':
-            settings.token = elements.githubConfig.token.value;
-            settings.gistId = elements.githubConfig.gistId.value;
+            settings.token = elements.githubConfig.token.value.trim();
+            settings.gistId = elements.githubConfig.gistId.value.trim();
             break;
         case 'gitee':
-            settings.token = elements.giteeConfig.token.value;
-            settings.gistId = elements.giteeConfig.gistId.value;
+            settings.token = elements.giteeConfig.token.value.trim();
+            settings.gistId = elements.giteeConfig.gistId.value.trim();
             break;
         case 'gitlab':
-            settings.gitlabUrl = elements.gitlabConfig.url.value;
-            settings.token = elements.gitlabConfig.token.value;
-            settings.gistId = elements.gitlabConfig.snippetId.value; // Note the ID mismatch
+            settings.token = elements.gitlabConfig.token.value.trim();
+            settings.gistId = elements.gitlabConfig.snippetId.value.trim();
+            settings.gitlabUrl = elements.gitlabConfig.url.value.trim();
             break;
         case 'webdav':
-            settings.webdavUrl = elements.webdavConfig.url.value;
-            settings.webdavUsername = elements.webdavConfig.username.value;
-            settings.webdavPassword = elements.webdavConfig.password.value;
+            settings.token = elements.webdavConfig.password.value.trim();
+            settings.webdavUrl = elements.webdavConfig.url.value.trim();
+            settings.webdavUsername = elements.webdavConfig.username.value.trim();
             break;
         case 'custom':
-            settings.customApiUrl = elements.customConfig.url.value;
-            settings.apiKey = elements.customConfig.apiKey.value;
+            settings.token = elements.customConfig.apiKey.value.trim();
+            settings.customApiUrl = elements.customConfig.url.value.trim();
             break;
     }
     
-    const saveButton = elements.saveSyncSettingsButton;
-    const originalButtonHtml = saveButton.innerHTML;
-    saveButton.disabled = true;
-    saveButton.innerHTML = `<span class="spinner"></span>正在验证中...`;
-    let isSuccess = false;
-    
-    api.postMessageWithResponse('webview:saveCloudSyncSettings', settings)
-        .then(result => {
-            if (result.success) {
-                isSuccess = true;
-                showToast('云同步设置已保存并验证成功!', 'success');
-                // The full settings object is in result.data
-                setSyncConfigLockedState(true, result.data, provider);
+    try {
+        const updatedAppData = await api.saveSyncSettings(settings);
+        // Update global state
+        state.appData = updatedAppData;
 
-                // Show and highlight the sync actions
-                const syncActionsContainer = document.getElementById('sync-actions-container');
-                syncActionsContainer.classList.remove('hidden');
-                
-                const syncButtons = syncActionsContainer.querySelectorAll('.btn');
-                syncButtons.forEach(btn => {
-                    btn.classList.add('highlight-animation');
-                    // Remove animation class after it finishes
-                    setTimeout(() => btn.classList.remove('highlight-animation'), 2000);
-                });
-
-            } else {
-                showToast(`设置失败: ${result.error}`, 'error');
-            }
-        })
-        .catch(err => showToast(`保存失败: ${err.message}`, 'error'))
-        .finally(() => {
-            if (!isSuccess) {
-                saveButton.disabled = false;
-                saveButton.innerHTML = originalButtonHtml;
-            }
-        });
+        setSyncConfigLockedState(true, updatedAppData.settings, provider);
+        renderSettingsStatus(updatedAppData.settings); // Explicitly update status indicators
+        highlightSyncActions();
+        api.showToast('云同步设置已保存并验证成功！', 'success');
+    } catch (error) {
+        // Errors are now globally handled and shown as VS Code notifications,
+        // so we just need to catch them to prevent unhandled promise rejections.
+        // The UI state will remain unlocked for the user to try again.
+    } finally {
+        setSaveButtonLoading(false);
+    }
 }
 
 function handleSyncToCloud() {
     api.postMessageWithResponse('webview:syncToCloud')
-        .catch(err => showToast(`同步失败: ${err.message}`, 'error'));
+        .then(result => {
+            if (result.success) {
+                api.showToast(result.message || '同步成功！', 'success');
+            }
+        })
+        .catch(err => {
+            // Error is handled by the backend and displayed as a native VS Code notification.
+            // No need to show a separate toast here.
+            console.error('Sync to cloud failed:', err);
+        });
 }
 
 function handleSyncFromCloud() {
     api.postMessageWithResponse('webview:syncFromCloud')
-        .then((result) => {
+        .then(result => {
             if (result) {
                 refreshCallback();
             }
         })
-        .catch(err => showToast(`从云端同步失败: ${err.message}`, 'error'));
+        .catch(err => {
+            // Error is handled by the backend.
+            console.error('Sync from cloud failed:', err);
+        });
 }
 
 export function updateCloudSyncView(settings) {
-    if (!settings) return;
+    if (!dom.settingsViewElements.view) return; // View not present
+
     const { settingsViewElements: elements } = dom;
-
-    const isEnabled = settings.cloudSync;
-    elements.cloudSyncEnabledToggle.checked = isEnabled;
-    elements.cloudSyncConfigContainer.classList.toggle('hidden', !isEnabled);
+    const isConfigured = settings && settings.syncProvider && settings.syncProvider !== 'disabled';
     
-    if (isEnabled) {
-        const provider = settings.syncProvider || 'disabled';
-        elements.syncProviderSelect.value = provider;
-        showProviderConfig(provider);
+    elements.cloudSyncEnabledToggle.checked = isConfigured;
+    elements.cloudSyncConfigContainer.classList.toggle('hidden', !isConfigured);
+    
+    if (isConfigured) {
+        elements.syncProviderSelect.value = settings.syncProvider;
+        setSyncConfigLockedState(true, settings, settings.syncProvider);
+    } else {
+        elements.syncProviderSelect.value = 'disabled';
+        setSyncConfigLockedState(false, {}, 'disabled');
+        }
+}
 
-        // Populate non-sensitive fields
-        if (settings.syncProvider === 'github') {
-            elements.githubConfig.gistId.value = settings.gistId || '';
-        }
-        if (settings.syncProvider === 'gitee') {
-            elements.giteeConfig.gistId.value = settings.gistId || '';
-        }
-        if (settings.syncProvider === 'gitlab') {
-            elements.gitlabConfig.url.value = settings.gitlabUrl || '';
-            elements.gitlabConfig.snippetId.value = settings.gistId || '';
-        }
-        if (settings.syncProvider === 'webdav') {
-            elements.webdavConfig.url.value = settings.webdavUrl || '';
-            elements.webdavConfig.username.value = settings.webdavUsername || '';
-        }
-        if (settings.syncProvider === 'custom') {
-            elements.customConfig.url.value = settings.customApiUrl || '';
-        }
-        
-        // Lock the UI if the settings are already validated
-        if (settings.isValidated) {
-            setSyncConfigLockedState(true, settings, provider);
-        } else {
-            setSyncConfigLockedState(false, settings, provider);
-        }
+function setSaveButtonLoading(isLoading) {
+    const saveButton = dom.settingsViewElements.saveSyncSettingsButton;
+    if (saveButton) {
+        saveButton.disabled = isLoading;
+        saveButton.textContent = isLoading ? '正在验证...' : '保存并验证';
     }
 }
 
 export function init(refreshFunc) {
     if (hasInitialized) return;
 
-    if (refreshFunc) {
         refreshCallback = refreshFunc;
-    }
     const { settingsViewElements: elements } = dom;
 
-    elements.importButton.addEventListener('click', handleImport);
-    elements.exportButton.addEventListener('click', handleExport);
-    elements.createBackupButton.addEventListener('click', handleCreateBackup);
-    elements.restoreBackupButton.addEventListener('click', handleRestoreBackup);
+    elements.importButton?.addEventListener('click', () => document.getElementById('file-import-input').click());
+    document.getElementById('file-import-input')?.addEventListener('change', (e) => handleImport(e.target.files));
+    elements.exportButton?.addEventListener('click', handleExport);
+    elements.createBackupButton?.addEventListener('click', handleBackup);
+    elements.restoreBackupButton?.addEventListener('click', handleRestore);
     
-    // New cloud sync event listeners
-    elements.cloudSyncEnabledToggle.addEventListener('change', handleSyncToggle);
-    elements.syncProviderSelect.addEventListener('change', handleProviderChange);
-    elements.saveSyncSettingsButton.addEventListener('click', handleSaveSyncSettings);
-    elements.editSyncSettingsButton.addEventListener('click', () => {
-        const provider = dom.settingsViewElements.syncProviderSelect.value;
-        setSyncConfigLockedState(false, {}, provider);
-        showToast('设置已解锁，您可以进行修改。', 'info');
-    });
+    elements.cloudSyncEnabledToggle?.addEventListener('change', handleSyncToggle);
+    elements.syncProviderSelect?.addEventListener('change', handleProviderChange);
+    elements.saveSyncSettingsButton?.addEventListener('click', handleSaveSyncSettings);
 
-    elements.toggleWorkspaceModeButton.addEventListener('click', handleToggleWorkspaceMode);
+    elements.toggleWorkspaceModeButton.addEventListener('click', handleStorageChange);
     elements.showStorageInfoButton.addEventListener('click', () => api.postMessageWithResponse('showStorageInfo'));
-    elements.syncToCloudButton.addEventListener('click', handleSyncToCloud);
-    elements.syncFromCloudButton.addEventListener('click', handleSyncFromCloud);
 
     dom.mainViewElements.settingsButton.addEventListener('click', () => navigateTo('settings'));
     hasInitialized = true;
+}
+
+function highlightSyncActions() {
+    const { settingsViewElements: elements } = dom;
+    const syncActionsContainer = document.getElementById('sync-actions-container');
+    const syncButtons = syncActionsContainer.querySelectorAll('.btn');
+    syncButtons.forEach(btn => {
+        btn.classList.add('highlight-animation');
+        setTimeout(() => btn.classList.remove('highlight-animation'), 2000);
+    });
 } 
