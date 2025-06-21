@@ -198,10 +198,15 @@ export class PromptHubProvider implements vscode.WebviewViewProvider {
             }
 
             case 'showNotification': {
-                this._showNotification(payload.message, payload.type);
-                // This is a fire-and-forget message, so we don't need to send a response back.
-                // However, if the frontend uses `postMessageWithResponse`, it needs a reply.
-                this._postMessage({ type: 'notificationResponse', requestId: message.requestId, success: true });
+                const { message: notificationMessage, type: notificationType } = payload;
+                if (notificationType === 'error') {
+                    vscode.window.showErrorMessage(notificationMessage);
+                } else if (notificationType === 'warning') {
+                    vscode.window.showWarningMessage(notificationMessage);
+                } else {
+                    vscode.window.showInformationMessage(notificationMessage);
+                }
+                // This is a fire-and-forget message, no response needed.
                 break;
             }
 

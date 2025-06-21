@@ -3,6 +3,10 @@ import * as categoryView from './views/categoryView.js';
 import * as editView from './views/editView.js';
 import * as filterView from './views/filterView.js';
 import * as settingsView from './views/settingsView.js';
+import * as api from './api.js';
+
+// --- Globals ---
+let activeView = 'main';
 
 // --- Navigation ---
 
@@ -206,50 +210,14 @@ export function renderSettingsStatus(status) {
 }
 
 // --- Toasts (Notifications) ---
-let toastQueue = [];
-let isToastVisible = false;
 
-function createToastContainer() {
-    const container = document.createElement('div');
-    container.id = 'toast-container';
-    document.body.appendChild(container);
-    return container;
-}
-
-export function showToast(message, type = 'info', duration = 3000) {
-    const toastContainer = document.getElementById('toast-container') || createToastContainer();
-    
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-
-    toastQueue.push({ element: toast, duration });
-    if (!isToastVisible) {
-        processToastQueue();
-    }
-}
-
-function processToastQueue() {
-    if (toastQueue.length === 0) {
-        isToastVisible = false;
-        return;
-    }
-    isToastVisible = true;
-    const { element, duration } = toastQueue.shift();
-    const toastContainer = document.getElementById('toast-container');
-    toastContainer.appendChild(element);
-
-    setTimeout(() => {
-        element.classList.add('show');
-    }, 10); // Small delay to allow CSS transition
-
-    setTimeout(() => {
-        element.classList.remove('show');
-        setTimeout(() => {
-            if (element.parentNode === toastContainer) {
-                 toastContainer.removeChild(element);
-            }
-            processToastQueue();
-        }, 500); // Wait for fade out animation
-    }, duration);
+/**
+ * 使用 VS Code 的原生通知API显示消息。
+ * @param {string} message - 要显示的消息.
+ * @param {'info' | 'success' | 'warning' | 'error'} type - 通知类型.
+ */
+export function showToast(message, type = 'info') {
+    // 将 'success' 映射到 'info'，因为 VS Code 的原生通知只有这三种
+    const notificationType = type === 'success' ? 'info' : type;
+    api.showNotification(message, notificationType);
 }

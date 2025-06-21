@@ -44,3 +44,11 @@ export function initializeApiListener() {
         }
     });
 }
+
+// 这是个 "fire-and-forget" 的消息，不期待回复
+export function showNotification(message, type = 'info') {
+    state.vscode.postMessage({
+        type: 'showNotification',
+        payload: { message, type }
+    });
+}
